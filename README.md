@@ -2,7 +2,7 @@
 
 GridMind is a developing energy simulation project. It currently provides **Module 1: Data Input & Configuration**, **Module 2: Energy Simulation Engine**, and **Module 3: Dispatch Optimizer**.
 
-Module 1 provides typed, immutable models and validation for demand, solar generation, tariffs, battery parameters, and aligned interval data. Module 2 runs a deterministic, self-consumption-first energy balance and reports interval energy flows and tariff costs/credits. Module 3 searches battery charge and discharge schedules to minimize modeled grid import costs minus export credits across the supplied horizon. It can consider grid charging, respects battery limits and a terminal state of charge, and uses a discrete state-of-charge resolution. It is an approximate optimizer whose accuracy depends on `soc_step_kwh`. It does not optimize battery sizing, demand response, or multi-site energy sharing.
+Module 1 provides typed, immutable models and validation for demand, solar generation, tariffs, battery parameters, and aligned interval data. Module 2 runs a deterministic, self-consumption-first energy balance and reports interval energy flows and tariff costs/credits. Module 3 searches battery charge and discharge schedules to minimize modeled grid import costs minus export credits across the supplied horizon. It can consider grid charging, balances grid charging against solar export rates, curtails solar when export rates are negative, respects battery limits and a terminal state of charge, and uses a discrete state-of-charge resolution. It is an approximate optimizer whose accuracy depends on `soc_step_kwh`. It does not optimize battery sizing, demand response, or multi-site energy sharing.
 
 ## Requirements
 

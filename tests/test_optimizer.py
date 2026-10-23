@@ -56,6 +56,28 @@ class OptimizerTests(unittest.TestCase):
         self.assertAlmostEqual(result.intervals[1].battery_discharge_kwh, 1.0)
         self.assertAlmostEqual(result.total_cost, 0.0)
 
+    def test_grid_charging_can_be_more_profitable_than_exporting_solar(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 1], [1, 0], [0.1, 1.0], [1.0, 0.0]),
+            OptimizationConfig(soc_step_kwh=0.5),
+        )
+        first = result.intervals[0]
+        self.assertAlmostEqual(first.battery_charge_from_grid_kwh, 1.0)
+        self.assertAlmostEqual(first.battery_charge_from_solar_kwh, 0.0)
+        self.assertAlmostEqual(first.grid_export_kwh, 1.0)
+        self.assertAlmostEqual(result.total_cost, -0.9)
+
+    def test_negative_export_rate_curtails_surplus(self):
+        result = optimize_dispatch(
+            GridMindConfig(BatteryConfig(1, 0, 0)),
+            make_inputs([0], [1], [0], [-0.1]),
+        )
+        self.assertAlmostEqual(result.intervals[0].grid_export_kwh, 0.0)
+        self.assertAlmostEqual(result.intervals[0].solar_curtailment_kwh, 1.0)
+        self.assertAlmostEqual(result.total_cost, 0.0)
+
     def test_can_disable_grid_charging(self):
         config = GridMindConfig(BatteryConfig(1, 1, 1))
         result = optimize_dispatch(
@@ -117,7 +139,7 @@ class OptimizerTests(unittest.TestCase):
             )
             self.assertAlmostEqual(
                 item.solar_generation_kwh,
-                item.solar_to_load_kwh + item.battery_charge_from_solar_kwh + item.grid_export_kwh,
+                item.solar_to_load_kwh + item.battery_charge_from_solar_kwh + item.grid_export_kwh + item.solar_curtailment_kwh,
             )
             self.assertAlmostEqual(
                 item.battery_charge_kwh,
