@@ -1,11 +1,13 @@
-"""GridMind input models and configuration foundation."""
+"""GridMind input models, configuration, and energy simulation."""
 
 from .models import (
     BatteryConfig, DemandSeries, GridMindConfig, InputData,
     SolarSeries, TariffSeries, TimeSeriesPoint,
 )
+from .simulation import IntervalResult, SimulationResult, simulate
 
 __all__ = [
     "BatteryConfig", "DemandSeries", "GridMindConfig", "InputData",
-    "SolarSeries", "TariffSeries", "TimeSeriesPoint",
+    "IntervalResult", "SimulationResult", "SolarSeries", "TariffSeries",
+    "TimeSeriesPoint", "simulate",
 ]

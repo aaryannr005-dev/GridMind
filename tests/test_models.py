@@ -35,6 +35,14 @@ class TimeSeriesTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "timestamps must match"):
             InputData(demand, shifted, tariffs)
 
+    def test_input_data_reports_wrong_component_type(self):
+        with self.assertRaisesRegex(ValueError, "DemandSeries"):
+            InputData(None, None, None)
+
+    def test_rejects_extremely_large_integer(self):
+        with self.assertRaisesRegex(ValueError, "finite"):
+            TimeSeriesPoint(BASE, 10**1000)
+
 
 class ConfigurationTests(unittest.TestCase):
     def test_valid_configuration_normalizes_currency(self):
@@ -51,6 +59,8 @@ class ConfigurationTests(unittest.TestCase):
         battery = BatteryConfig(10, 5, 5)
         with self.assertRaisesRegex(ValueError, "positive integer"):
             GridMindConfig(battery, interval_minutes=0)
+        with self.assertRaisesRegex(ValueError, "ASCII"):
+            GridMindConfig(battery, currency="ÄBC")
         with self.assertRaisesRegex(ValueError, "three-letter"):
             GridMindConfig(battery, currency="ringgit")
 
