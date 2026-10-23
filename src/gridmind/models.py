@@ -1,7 +1,7 @@
 """Typed configuration and time-series input models for GridMind.
 
-These models validate inputs only. They do not simulate dispatch or optimize
-battery operation.
+These models validate data and configuration only. Simulation behavior lives
+in :mod:`gridmind.simulation`.
 """
 
 from __future__ import annotations
@@ -15,7 +15,11 @@ from typing import Iterable
 def _finite_number(value: float, name: str, *, minimum: float | None = None) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a number")
-    if not math.isfinite(value):
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
         raise ValueError(f"{name} must be finite")
     if minimum is not None and value < minimum:
         raise ValueError(f"{name} must be at least {minimum}")
@@ -24,6 +28,7 @@ def _finite_number(value: float, name: str, *, minimum: float | None = None) -> 
 @dataclass(frozen=True, slots=True)
 class TimeSeriesPoint:
     """A value observed at the start of a timezone-aware interval."""
+
     timestamp: datetime
     value: float
 
@@ -52,6 +57,7 @@ def _validate_points(points: Iterable[TimeSeriesPoint], label: str, *, allow_neg
 @dataclass(frozen=True, slots=True)
 class DemandSeries:
     """Electricity demand in kWh per interval."""
+
     points: tuple[TimeSeriesPoint, ...]
 
     def __post_init__(self) -> None:
@@ -61,6 +67,7 @@ class DemandSeries:
 @dataclass(frozen=True, slots=True)
 class SolarSeries:
     """Solar generation in kWh per interval."""
+
     points: tuple[TimeSeriesPoint, ...]
 
     def __post_init__(self) -> None:
@@ -70,6 +77,7 @@ class SolarSeries:
 @dataclass(frozen=True, slots=True)
 class TariffSeries:
     """Import and export prices in currency per kWh for each interval."""
+
     import_rates: tuple[TimeSeriesPoint, ...]
     export_rates: tuple[TimeSeriesPoint, ...] | None = None
 
@@ -84,11 +92,18 @@ class TariffSeries:
 @dataclass(frozen=True, slots=True)
 class InputData:
     """Aligned demand, solar, and tariff series for a future simulation."""
+
     demand: DemandSeries
     solar: SolarSeries
     tariffs: TariffSeries
 
     def __post_init__(self) -> None:
+        if not isinstance(self.demand, DemandSeries):
+            raise ValueError("demand must be a DemandSeries")
+        if not isinstance(self.solar, SolarSeries):
+            raise ValueError("solar must be a SolarSeries")
+        if not isinstance(self.tariffs, TariffSeries):
+            raise ValueError("tariffs must be a TariffSeries")
         series = [self.demand.points, self.solar.points, self.tariffs.import_rates]
         if self.tariffs.export_rates is not None:
             series.append(self.tariffs.export_rates)
@@ -100,6 +115,7 @@ class InputData:
 @dataclass(frozen=True, slots=True)
 class BatteryConfig:
     """Battery limits and starting state; efficiencies are fractions in (0, 1]."""
+
     capacity_kwh: float
     max_charge_power_kw: float
     max_discharge_power_kw: float
@@ -126,6 +142,7 @@ class BatteryConfig:
 @dataclass(frozen=True, slots=True)
 class GridMindConfig:
     """Top-level inputs for a simulation run, without simulation behavior."""
+
     battery: BatteryConfig
     interval_minutes: int = 60
     currency: str = "MYR"
@@ -135,6 +152,11 @@ class GridMindConfig:
             raise ValueError("interval_minutes must be a positive integer")
         if not isinstance(self.battery, BatteryConfig):
             raise ValueError("battery must be a BatteryConfig")
-        if not isinstance(self.currency, str) or len(self.currency.strip()) != 3 or not self.currency.strip().isalpha():
-            raise ValueError("currency must be a three-letter code")
+        if (
+            not isinstance(self.currency, str)
+            or len(self.currency.strip()) != 3
+            or not self.currency.strip().isascii()
+            or not self.currency.strip().isalpha()
+        ):
+            raise ValueError("currency must be a three-letter ASCII code")
         object.__setattr__(self, "currency", self.currency.strip().upper())
