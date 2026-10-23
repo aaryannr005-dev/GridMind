@@ -16,7 +16,7 @@ class TimeSeriesTests(unittest.TestCase):
             TimeSeriesPoint(datetime(2026, 1, 1), 1.0)
 
     def test_rejects_negative_demand(self):
-        with self.assertRaisesRegex(ValueError, "at least 0"):
+        with self.assertRaisesRegex(ValueError, "nonnegative"):
             DemandSeries(points(1.0, -1.0))
 
     def test_rejects_non_increasing_timestamps(self):
@@ -31,7 +31,7 @@ class TimeSeriesTests(unittest.TestCase):
     def test_input_series_must_be_aligned(self):
         demand, solar, tariffs = DemandSeries(points(1.0, 2.0)), SolarSeries(points(0.0, 1.0)), TariffSeries(points(0.3, 0.4))
         InputData(demand, solar, tariffs)
-        shifted = SolarSeries((TimeSeriesPoint(BASE + timedelta(minutes=30), 0.0), points(1.0)[0]))
+        shifted = SolarSeries((TimeSeriesPoint(BASE + timedelta(minutes=30), 0.0), TimeSeriesPoint(BASE + timedelta(minutes=90), 1.0)))
         with self.assertRaisesRegex(ValueError, "timestamps must match"):
             InputData(demand, shifted, tariffs)
 
