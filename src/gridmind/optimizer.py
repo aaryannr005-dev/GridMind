@@ -224,7 +224,7 @@ def optimize_dispatch(
             if not math.isfinite(current_cost):
                 continue
             max_charge = battery.max_charge_power_kw * (config.interval_minutes / 60) * battery.charge_efficiency
-            max_discharge = battery.max_discharge_power_kw * (config.interval_minutes / 60) * battery.discharge_efficiency
+            max_discharge = battery.max_discharge_power_kw * (config.interval_minutes / 60) / battery.discharge_efficiency
             lower_soc = max(0.0, current_soc - max_discharge)
             upper_soc = min(battery.capacity_kwh, current_soc + max_charge)
             if not options.allow_grid_charging:
