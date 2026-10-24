@@ -166,6 +166,22 @@ class OptimizerTests(unittest.TestCase):
                 item.battery_charge_from_solar_kwh + item.battery_charge_from_grid_kwh,
             )
 
+    def test_rejects_tariff_product_that_overflows_finite_range(self):
+        timestamp = START
+        data = InputData(
+            DemandSeries((TimeSeriesPoint(timestamp, 1e308),)),
+            SolarSeries((TimeSeriesPoint(timestamp, 0.0),)),
+            TariffSeries((TimeSeriesPoint(timestamp, 1e308),)),
+        )
+        with self.assertRaisesRegex(ValueError, "finite numeric range"):
+            optimize_dispatch(GridMindConfig(BatteryConfig(1, 0, 0)), data)
+
+    def test_rejects_horizon_cost_sum_that_overflows_finite_range(self):
+        data = make_inputs([1.0, 1.0], [0.0, 0.0], [1e308, 1e308])
+        with self.assertRaisesRegex(ValueError, "finite numeric range"):
+            optimize_dispatch(GridMindConfig(BatteryConfig(1, 0, 0)), data)
+
 
 if __name__ == "__main__":
     unittest.main()
+

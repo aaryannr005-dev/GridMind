@@ -7,7 +7,7 @@ in :mod:`gridmind.simulation`.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import math
 from typing import Iterable
 
@@ -39,7 +39,10 @@ class TimeSeriesPoint:
 
 
 def _validate_points(points: Iterable[TimeSeriesPoint], label: str, *, allow_negative: bool = False) -> tuple[TimeSeriesPoint, ...]:
-    result = tuple(points)
+    try:
+        result = tuple(points)
+    except TypeError as exc:
+        raise ValueError(f"{label} must be an iterable of TimeSeriesPoint instances") from exc
     if not result:
         raise ValueError(f"{label} must contain at least one point")
     previous: datetime | None = None
@@ -48,9 +51,10 @@ def _validate_points(points: Iterable[TimeSeriesPoint], label: str, *, allow_neg
             raise ValueError(f"{label} entries must be TimeSeriesPoint instances")
         if not allow_negative and point.value < 0:
             raise ValueError(f"{label} values must be nonnegative")
-        if previous is not None and point.timestamp <= previous:
+        instant = point.timestamp.astimezone(timezone.utc)
+        if previous is not None and instant <= previous:
             raise ValueError(f"{label} timestamps must be strictly increasing")
-        previous = point.timestamp
+        previous = instant
     return result
 
 
@@ -85,7 +89,9 @@ class TariffSeries:
         object.__setattr__(self, "import_rates", _validate_points(self.import_rates, "import tariff", allow_negative=True))
         if self.export_rates is not None:
             object.__setattr__(self, "export_rates", _validate_points(self.export_rates, "export tariff", allow_negative=True))
-            if tuple(p.timestamp for p in self.export_rates) != tuple(p.timestamp for p in self.import_rates):
+            if tuple(p.timestamp.astimezone(timezone.utc) for p in self.export_rates) != tuple(
+                p.timestamp.astimezone(timezone.utc) for p in self.import_rates
+            ):
                 raise ValueError("import and export tariff timestamps must match")
 
 
@@ -107,8 +113,11 @@ class InputData:
         series = [self.demand.points, self.solar.points, self.tariffs.import_rates]
         if self.tariffs.export_rates is not None:
             series.append(self.tariffs.export_rates)
-        expected = tuple(point.timestamp for point in series[0])
-        if any(tuple(point.timestamp for point in values) != expected for values in series[1:]):
+        expected = tuple(point.timestamp.astimezone(timezone.utc) for point in series[0])
+        if any(
+            tuple(point.timestamp.astimezone(timezone.utc) for point in values) != expected
+            for values in series[1:]
+        ):
             raise ValueError("demand, solar, and tariff timestamps must match exactly")
 
 
@@ -162,6 +171,10 @@ class GridMindConfig:
     def __post_init__(self) -> None:
         if isinstance(self.interval_minutes, bool) or not isinstance(self.interval_minutes, int) or self.interval_minutes <= 0:
             raise ValueError("interval_minutes must be a positive integer")
+        try:
+            timedelta(minutes=self.interval_minutes)
+        except OverflowError as exc:
+            raise ValueError("interval_minutes exceeds the supported datetime range") from exc
         if not isinstance(self.battery, BatteryConfig):
             raise ValueError("battery must be a BatteryConfig")
         if (
@@ -172,3 +185,4 @@ class GridMindConfig:
         ):
             raise ValueError("currency must be a three-letter ASCII code")
         object.__setattr__(self, "currency", self.currency.strip().upper())
+

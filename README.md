@@ -32,7 +32,9 @@ Python 3.10 or newer. The package has no runtime dependencies.
     result = optimize_dispatch(config, inputs, OptimizationConfig(soc_step_kwh=0.25))
     print(result.total_cost, result.currency)
 
-Timestamps must be timezone-aware and strictly increasing. Demand, solar, and tariff series must have matching timestamps, spaced according to `interval_minutes`. Battery efficiencies are fractions in (0, 1]. `min_soc_kwh` and `max_soc_kwh` set the usable state-of-charge range; the maximum defaults to battery capacity, and the initial state must lie within the configured range. The optimizer preserves the starting state of charge at the end of the horizon by default; set `terminal_soc_kwh` to choose another valid ending level. By default it may charge from the grid when that reduces the modeled total cost. Set `allow_grid_charging=False` to prohibit this.
+Timestamps must be timezone-aware and strictly increasing by absolute time. Demand, solar, and tariff series must refer to the same instants, spaced according to `interval_minutes`; this distinguishes repeated local hours at daylight-saving transitions. Battery efficiencies are fractions in (0, 1]. `min_soc_kwh` and `max_soc_kwh` set the usable state-of-charge range; the maximum defaults to battery capacity, and the initial state must lie within the configured range. The optimizer preserves the starting state of charge at the end of the horizon by default; set `terminal_soc_kwh` to choose another valid ending level. By default it may charge from the grid when that reduces the modeled total cost. Set `allow_grid_charging=False` to prohibit this.
+
+Simulation and optimization raise a clear `ValueError` if otherwise finite inputs produce non-finite interval flows or tariff totals due to numeric overflow. Result metrics reject non-finite or malformed interval data rather than reporting it as valid.
 
 ## Metrics and strategy comparison
 
@@ -57,3 +59,4 @@ report = generate_report(baseline, config, inputs, optimized)
 print(render_markdown(report))
 # Save an SVG chart if desired: Path("energy.svg").write_text(report.charts[0].svg)
 ```
+

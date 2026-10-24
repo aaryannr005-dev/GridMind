@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 import unittest
+from zoneinfo import ZoneInfo
 
 from gridmind import BatteryConfig, DemandSeries, GridMindConfig, InputData, SolarSeries, TariffSeries, TimeSeriesPoint
 
@@ -23,6 +24,23 @@ class TimeSeriesTests(unittest.TestCase):
         repeated = (TimeSeriesPoint(BASE, 1), TimeSeriesPoint(BASE, 2))
         with self.assertRaisesRegex(ValueError, "strictly increasing"):
             SolarSeries(repeated)
+
+    def test_accepts_distinct_instants_in_repeated_daylight_saving_hour(self):
+        local = ZoneInfo("America/New_York")
+        first = TimeSeriesPoint(datetime(2025, 11, 2, 1, tzinfo=local, fold=0), 1)
+        second = TimeSeriesPoint(datetime(2025, 11, 2, 1, tzinfo=local, fold=1), 2)
+        self.assertEqual(len(DemandSeries((first, second)).points), 2)
+
+    def test_rejects_series_alignment_at_different_daylight_saving_folds(self):
+        local = ZoneInfo("America/New_York")
+        first = TimeSeriesPoint(datetime(2025, 11, 2, 1, tzinfo=local, fold=0), 1)
+        second = TimeSeriesPoint(datetime(2025, 11, 2, 1, tzinfo=local, fold=1), 1)
+        with self.assertRaisesRegex(ValueError, "timestamps must match"):
+            InputData(DemandSeries((first,)), SolarSeries((second,)), TariffSeries((first,)))
+
+    def test_rejects_none_as_timeseries_input_with_value_error(self):
+        with self.assertRaisesRegex(ValueError, "iterable"):
+            DemandSeries(None)
 
     def test_tariffs_allow_negative_credit(self):
         tariffs = TariffSeries(import_rates=points(0.4, 0.5), export_rates=points(-0.1, 0.0))
@@ -72,7 +90,10 @@ class ConfigurationTests(unittest.TestCase):
             GridMindConfig(battery, currency="ÄBC")
         with self.assertRaisesRegex(ValueError, "three-letter"):
             GridMindConfig(battery, currency="ringgit")
+        with self.assertRaisesRegex(ValueError, "datetime range"):
+            GridMindConfig(battery, interval_minutes=10**1000)
 
 
 if __name__ == "__main__":
     unittest.main()
+

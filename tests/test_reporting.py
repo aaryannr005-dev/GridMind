@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from xml.etree import ElementTree
+from zoneinfo import ZoneInfo
 import unittest
 
 from gridmind import (
@@ -98,6 +99,26 @@ class ReportingTests(unittest.TestCase):
         self.assertIsNone(report.baseline_hourly)
         self.assertIn("Hourly aggregation is omitted", " ".join(report.limitations))
 
+    def test_hourly_summaries_keep_repeated_daylight_saving_hours_distinct(self):
+        local = ZoneInfo("America/New_York")
+        times = (
+            datetime(2025, 11, 2, 1, tzinfo=local, fold=0),
+            datetime(2025, 11, 2, 1, tzinfo=local, fold=1),
+        )
+        points = lambda values: tuple(TimeSeriesPoint(t, value) for t, value in zip(times, values))
+        inputs = InputData(
+            DemandSeries(points((1, 2))),
+            SolarSeries(points((0, 0))),
+            TariffSeries(points((0.2, 0.3))),
+        )
+        config = GridMindConfig(BatteryConfig(1, 0, 0), interval_minutes=60)
+        report = generate_report(simulate(config, inputs), config, inputs)
+
+        self.assertEqual(len(report.baseline_hourly), 2)
+        self.assertNotEqual(report.baseline_hourly[0].hour_start.utcoffset(), report.baseline_hourly[1].hour_start.utcoffset())
+        self.assertIn("-0400", report.charts[0].svg)
+        self.assertIn("-0500", report.charts[0].svg)
+
     def test_invalid_strategy_scenario_is_rejected_by_metrics_dependency(self):
         config, inputs = scenario()
         wrong = scenario((2, 0), (0, 2))[1]
@@ -107,3 +128,4 @@ class ReportingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -100,6 +100,23 @@ class SimulationTests(unittest.TestCase):
         self.assertAlmostEqual(result.intervals[1].export_credit, -0.1)
         self.assertAlmostEqual(result.total_net_cost, 0.6)
 
+    def test_rejects_tariff_product_that_overflows_finite_range(self):
+        timestamp = START
+        data = InputData(
+            DemandSeries((TimeSeriesPoint(timestamp, 1e308),)),
+            SolarSeries((TimeSeriesPoint(timestamp, 0.0),)),
+            TariffSeries((TimeSeriesPoint(timestamp, 1e308),)),
+        )
+        config = GridMindConfig(BatteryConfig(1, 0, 0))
+        with self.assertRaisesRegex(ValueError, "finite numeric range"):
+            simulate(config, data)
+
+    def test_rejects_horizon_cost_sum_that_overflows_finite_range(self):
+        data = inputs([1.0, 1.0], [0.0, 0.0], [1e308, 1e308])
+        with self.assertRaisesRegex(ValueError, "total tariff costs"):
+            simulate(GridMindConfig(BatteryConfig(1, 0, 0)), data)
+
 
 if __name__ == "__main__":
     unittest.main()
+
