@@ -11,18 +11,27 @@ Python 3.10 or newer. The package has no runtime dependencies.
     python -m pip install -e '.[test]'
     pytest
 
-## Local scenario dashboard
+## Local desktop scenario app
 
-Install the optional dashboard dependency and launch the local app:
+Install Python 3.10 or newer and the desktop dependencies in the project environment:
 
-    python -m pip install -e '.[dashboard]'
-    streamlit run app.py
+    python -m pip install -e '.[desktop]'
 
-The dashboard accepts 24 hourly values in MYT for demand and solar generation (kWh per interval), import tariffs and export credits (currency per kWh), plus battery capacity, power, efficiency, and state-of-charge limits. It validates entries with the same models as the library, then runs the baseline and cost optimizer on the same scenario. Results include both strategies' interval tables, comparison metrics, estimated cost changes, energy-flow charts, reproducibility fingerprint, and model checks. A zero value is valid; empty, malformed, non-finite, negative energy, and inconsistent battery values are rejected with an input error.
+Then launch `gridmind-desktop` from that environment. The launcher opens the existing Streamlit dashboard in its own application window. It starts the service on `127.0.0.1`, waits for its health endpoint, then opens the window. It tries ports 8501–8510 so another local service is not taken over. Closing the window shuts down the GridMind service.
+
+To add a Windows desktop shortcut, create a shortcut to `gridmind-desktop.exe` in the environment's `Scripts` folder (for example, `<environment>\Scripts\gridmind-desktop.exe`). The project registers this as a GUI entry point so launching it does not open a console window.
+
+On Windows, Microsoft Edge WebView2 Runtime is required. Most supported Windows installations already include it. If GridMind detects that it is missing, install the Evergreen WebView2 Runtime from [Microsoft's WebView2 page](https://developer.microsoft.com/microsoft-edge/webview2/) and restart GridMind. The wrapper checks the registered runtime and common installation folders before starting. The pywebview Windows backend also requires pythonnet, which is installed with the desktop dependency.
+
+The desktop app accepts 24 hourly values in MYT for demand and solar generation (kWh per interval), import tariffs and export credits (currency per kWh), plus battery capacity, power, efficiency, and state-of-charge limits. It validates entries with the same models as the library, then runs the baseline and cost optimizer on the same scenario. Results include both strategies' interval tables, comparison metrics, estimated cost changes, energy-flow charts, reproducibility fingerprint, and model checks. A zero value is valid; empty, malformed, non-finite, negative energy, and inconsistent battery values are rejected with an input error.
 
 The starting profile is synthetic demonstration data. It is not measured household or facility data. Results are scenario estimates, not bills or guaranteed savings. The app does not use the OpenDOSM statistics as household inputs, make network requests, store scenarios in a database, or create accounts. Project Streamlit settings bind to loopback and disable its usage statistics. Scenario values remain in the local Streamlit session's memory while the app is running.
 
-Streamlit is an optional third-party dependency under Apache License 2.0; it is not added to GridMind's runtime dependencies. If preparing a packaged application, review and include notices for Streamlit and any bundled transitive dependencies.
+Streamlit (Apache-2.0) and pywebview (BSD-3-Clause) are optional desktop dependencies; neither is required by the simulation library. See the [Streamlit license](https://github.com/streamlit/streamlit/blob/develop/LICENSE) and [pywebview license](https://github.com/r0x0r/pywebview/blob/master/LICENSE). The local service is loopback-only and keeps Streamlit's CORS and XSRF protections enabled. It does not send scenario inputs to a cloud service or enable usage statistics. Wrapper logs contain startup and shutdown diagnostics only and are stored under `%LOCALAPPDATA%/GridMind/logs` on Windows or `$XDG_STATE_HOME/GridMind/logs` (falling back to `~/.local/state/GridMind/logs`) elsewhere.
+
+To update a checkout installation, update the project files and run `python -m pip install --upgrade -e '.[desktop]'` again in the same environment. If startup reports that all ports 8501–8510 are occupied, close the other local applications using them and retry. If the desktop window prerequisite is missing, install WebView2 as described above. For service diagnostics, inspect `desktop.log` in the log folder; it records wrapper startup and shutdown events without recording scenario values.
+
+This repository currently provides a Python launcher, not a standalone installer or executable. The launcher requires Python and GridMind's desktop dependencies. To remove it, uninstall GridMind from the Python environment where it was installed (`python -m pip uninstall gridmind`); remove the log folder separately if desired. No Windows installer, desktop shortcut, or clean Windows installation has been produced or verified.
 
 ## Quick start
 
