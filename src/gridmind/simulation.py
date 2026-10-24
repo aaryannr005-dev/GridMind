@@ -108,7 +108,7 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
         charge_input = min(
             solar_surplus,
             battery.max_charge_power_kw * interval_hours,
-            (battery.capacity_kwh - state_of_charge) / battery.charge_efficiency,
+            (battery.max_soc_kwh - state_of_charge) / battery.charge_efficiency,
         )
         state_of_charge += charge_input * battery.charge_efficiency
         solar_surplus -= charge_input
@@ -116,7 +116,7 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
         battery_output = min(
             remaining_demand,
             battery.max_discharge_power_kw * interval_hours,
-            state_of_charge * battery.discharge_efficiency,
+            (state_of_charge - battery.min_soc_kwh) * battery.discharge_efficiency,
         )
         state_of_charge -= battery_output / battery.discharge_efficiency
         remaining_demand -= battery_output
