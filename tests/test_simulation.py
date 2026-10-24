@@ -63,6 +63,18 @@ class SimulationTests(unittest.TestCase):
         self.assertAlmostEqual(discharge.grid_import_kwh, 1.8)
         self.assertAlmostEqual(discharge.state_of_charge_kwh, 0.0)
 
+    def test_respects_minimum_and_maximum_battery_soc(self):
+        battery = BatteryConfig(5, 5, 5, initial_soc_kwh=2, min_soc_kwh=1, max_soc_kwh=3)
+        result = simulate(
+            GridMindConfig(battery),
+            inputs([5.0, 0.0], [0.0, 5.0]),
+        )
+        discharge, charge = result.intervals
+        self.assertAlmostEqual(discharge.battery_discharge_kwh, 1.0)
+        self.assertAlmostEqual(discharge.state_of_charge_kwh, 1.0)
+        self.assertAlmostEqual(charge.battery_charge_kwh, 2.0)
+        self.assertAlmostEqual(charge.state_of_charge_kwh, 3.0)
+
     def test_interval_energy_balances_hold(self):
         result = simulate(
             GridMindConfig(BatteryConfig(3, 1, 1, 0.9, 0.8, 0.5)),
