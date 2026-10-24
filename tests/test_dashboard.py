@@ -37,7 +37,7 @@ class DashboardScenarioTests(unittest.TestCase):
         self.assertTrue(any(row["Solar generation (kWh)"] > 0 for row in rows))
         self.assertTrue(all(row["Import tariff (per kWh)"] >= 0 for row in rows))
 
-    def test_normalizes_streamlit_list_and_dataframe_profile_returns(self):
+    def test_normalizes_list_and_dataframe_profile_returns(self):
         rows = synthetic_demo_profile()
 
         class DataFrameLike:

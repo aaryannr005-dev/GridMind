@@ -13,7 +13,7 @@ authors = [{ name = "GridMind contributors" }]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
-dashboard = ["streamlit>=1.65,<2"]
+desktop = ["PySide6-Essentials>=6.8,<7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

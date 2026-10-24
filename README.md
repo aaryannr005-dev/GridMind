@@ -11,18 +11,18 @@ Python 3.10 or newer. The package has no runtime dependencies.
     python -m pip install -e '.[test]'
     pytest
 
-## Local scenario dashboard
+## Desktop scenario app
 
-Install the optional dashboard dependency and launch the local app:
+Install the optional desktop dependency and launch the native app window:
 
-    python -m pip install -e '.[dashboard]'
-    streamlit run app.py
+    python -m pip install -e '.[desktop]'
+    python app.py
 
-The dashboard accepts 24 hourly values in MYT for demand and solar generation (kWh per interval), import tariffs and export credits (currency per kWh), plus battery capacity, power, efficiency, and state-of-charge limits. It validates entries with the same models as the library, then runs the baseline and cost optimizer on the same scenario. Results include both strategies' interval tables, comparison metrics, estimated cost changes, energy-flow charts, reproducibility fingerprint, and model checks. A zero value is valid; empty, malformed, non-finite, negative energy, and inconsistent battery values are rejected with an input error.
+The desktop app accepts 24 hourly values in MYT for demand and solar generation (kWh per interval), import tariffs and export credits (currency per kWh), plus battery capacity, power, efficiency, and state-of-charge limits. It validates entries with the same models as the library, then runs the baseline and cost optimizer on the same scenario. Results include both strategies' interval tables, comparison metrics, estimated cost changes, energy-flow charts, reproducibility fingerprint, and model checks. A zero value is valid; empty, malformed, non-finite, negative energy, and inconsistent battery values are rejected with an input error.
 
-The starting profile is synthetic demonstration data. It is not measured household or facility data. Results are scenario estimates, not bills or guaranteed savings. The app does not use the OpenDOSM statistics as household inputs, make network requests, store scenarios in a database, or create accounts. Project Streamlit settings bind to loopback and disable its usage statistics. Scenario values remain in the local Streamlit session's memory while the app is running.
+The starting profile is synthetic demonstration data. It is not measured household or facility data. Results are scenario estimates, not bills or guaranteed savings. The app does not use OpenDOSM statistics as household inputs, make network requests, store scenarios in a database, or create accounts. Scenario values remain in the desktop app's memory while it is running.
 
-Streamlit is an optional third-party dependency under Apache License 2.0; it is not added to GridMind's runtime dependencies. If preparing a packaged application, review and include notices for Streamlit and any bundled transitive dependencies.
+PySide6 Essentials is an optional third-party dependency offered under LGPLv3/GPL or commercial terms. It is not added to GridMind's runtime dependencies. Review the [Qt for Python license](https://doc.qt.io/qtforpython-6/) and [Qt licensing obligations](https://www.qt.io/development/open-source-lgpl-obligations), and include applicable notices before distributing a packaged app. This repository's launch command runs the app with Python; a standalone installer/executable is a separate packaging step.
 
 ## Quick start
 

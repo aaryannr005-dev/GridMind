@@ -57,7 +57,7 @@ def synthetic_demo_profile() -> tuple[dict[str, str | float], ...]:
 
 
 def profile_rows_to_records(profile: object) -> tuple[dict[str, Any], ...]:
-    """Normalize Streamlit's supported edited profile return types."""
+    """Normalize edited profile rows and dataframe-like return types."""
 
     if isinstance(profile, (list, tuple)):
         rows = profile
