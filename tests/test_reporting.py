@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from xml.etree import ElementTree
 import unittest
 
 from gridmind import (
@@ -48,11 +49,15 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(report.comparison_rows[0].metric, "Grid imports")
         self.assertEqual(len(report.charts), 4)
         self.assertTrue(all(chart.svg.startswith("<svg") for chart in report.charts))
+        self.assertTrue(all(ElementTree.fromstring(chart.svg).tag.endswith("svg") for chart in report.charts))
         self.assertEqual(report.scenario_fingerprint, generate_report(baseline, config, inputs, optimized).scenario_fingerprint)
         markdown = render_markdown(report)
         self.assertIn("Baseline vs GridMind", markdown)
         self.assertIn("Validation", markdown)
         self.assertIn("not measured outcomes", markdown)
+        self.assertIn("Initial SOC", markdown)
+        self.assertIn("Import cost", markdown)
+        self.assertTrue(any("optimizer SOC resolution" in item for item in report.assumptions))
 
     def test_supports_baseline_only_and_marks_gridmind_as_unavailable(self):
         config, inputs = scenario()

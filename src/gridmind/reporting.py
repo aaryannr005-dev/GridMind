@@ -80,6 +80,7 @@ class GridMindReport:
     interval_count: int
     duration_hours: float
     currency: str
+    battery_capacity_kwh: float
     baseline: SimulationMetrics
     gridmind: SimulationMetrics | None
     comparison: StrategyComparison | None
@@ -204,7 +205,7 @@ def _comparison_chart(rows: tuple[ComparisonRow, ...]) -> str:
     width, row_h, height = 820, 42, 70 + 42*len(rows)
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Baseline and GridMind metric comparison" viewBox="0 0 {width} {height}">',
              '<rect width="100%" height="100%" fill="white"/>',
-             '<text x="18" y="25" font-family="sans-serif" font-size="17" font-weight="bold">Baseline vs GridMind (each pair scaled to its own maximum)</text>']
+             '<text x="18" y="25" font-family="sans-serif" font-size="17" font-weight="bold">Baseline vs GridMind (bar length is magnitude; labels retain sign)</text>']
     for index, row in enumerate(rows):
         y = 52 + index*row_h
         maximum = max(abs(row.baseline), abs(row.gridmind), 1e-12)
@@ -292,16 +293,20 @@ def generate_report(
         svg=_line_chart("Battery state of charge", base_labels, tuple(soc_series), "% of capacity"),
     )]
     if comparisons:
-        charts.append(ReportChart("Baseline vs GridMind comparison", "Paired bars are normalized independently by metric. Use the comparison table for exact values.", _comparison_chart(comparisons)))
+        charts.append(ReportChart("Baseline vs GridMind comparison", "Bar length shows absolute magnitude, normalized per metric; text labels retain each value's sign. Use the comparison table for exact values.", _comparison_chart(comparisons)))
 
-    assumptions = (
+    assumptions = [
         f"Interval duration is {config.interval_minutes} minutes; energy values are modeled per interval.",
         f"Tariff values and estimated costs use {config.currency}.",
         f"Battery state of charge is displayed as a percent of {config.battery.capacity_kwh:g} kWh nominal capacity.",
+        f"Battery usable state-of-charge range is {config.battery.min_soc_kwh:g}–{config.battery.max_soc_kwh:g} kWh; charge/discharge power limits are {config.battery.max_charge_power_kw:g}/{config.battery.max_discharge_power_kw:g} kW.",
+        f"Battery charge/discharge efficiencies are {config.battery.charge_efficiency:g}/{config.battery.discharge_efficiency:g}; initial state of charge is {config.battery.initial_soc_kwh:g} kWh.",
         "Import and export tariffs are modeled in currency per kWh; omitted export tariffs produce zero export credit.",
         "Tariffs, demand, and solar generation are the supplied scenario inputs; results are simulated estimates, not measured outcomes.",
         "Baseline and GridMind comparisons use the same input series and configuration.",
-    )
+    ]
+    if gridmind is not None and hasattr(gridmind, "soc_step_kwh"):
+        assumptions.append(f"GridMind optimizer SOC resolution is {gridmind.soc_step_kwh:g} kWh, with terminal SOC {gridmind.terminal_soc_kwh:g} kWh.")
     limitations = (
         "Battery degradation, temperature, ageing, and other omitted physical effects are not represented.",
         "Grid limits and export constraints are not modeled by the current engine.",
@@ -317,6 +322,7 @@ def generate_report(
         interval_count=len(base_rows),
         duration_hours=len(base_rows)*config.interval_minutes/60,
         currency=config.currency,
+        battery_capacity_kwh=config.battery.capacity_kwh,
         baseline=baseline_metrics,
         gridmind=optimized_metrics,
         comparison=comparison,
@@ -325,7 +331,7 @@ def generate_report(
         baseline_hourly=hourly,
         gridmind_hourly=grid_hourly,
         comparison_rows=comparisons,
-        assumptions=assumptions,
+        assumptions=tuple(assumptions),
         limitations=limitations,
         charts=tuple(charts),
     )
@@ -341,12 +347,18 @@ def render_markdown(report: GridMindReport) -> str:
              "| Metric | Baseline | GridMind | Unit |", "|---|---:|---:|---|"]
     def fmt(value: float | None) -> str:
         return "—" if value is None else f"{value:.4g}"
+    def soc_percent(value: float) -> float:
+        return 100.0 * value / report.battery_capacity_kwh
     items = [("Demand", report.baseline.total_demand_kwh, report.gridmind.total_demand_kwh if report.gridmind else None, "kWh"),
              ("Solar generation", report.baseline.total_solar_generation_kwh, report.gridmind.total_solar_generation_kwh if report.gridmind else None, "kWh"),
              ("Grid imports", report.baseline.grid_import_kwh, report.gridmind.grid_import_kwh if report.gridmind else None, "kWh"),
              ("Grid exports", report.baseline.grid_export_kwh, report.gridmind.grid_export_kwh if report.gridmind else None, "kWh"),
              ("Battery charged", report.baseline.battery_charge_kwh, report.gridmind.battery_charge_kwh if report.gridmind else None, "kWh"),
              ("Battery discharged", report.baseline.battery_discharge_kwh, report.gridmind.battery_discharge_kwh if report.gridmind else None, "kWh"),
+             ("Initial SOC", soc_percent(report.baseline.initial_soc_kwh), soc_percent(report.gridmind.initial_soc_kwh) if report.gridmind else None, "% capacity"),
+             ("Final SOC", soc_percent(report.baseline.final_soc_kwh), soc_percent(report.gridmind.final_soc_kwh) if report.gridmind else None, "% capacity"),
+             ("Import cost", report.baseline.import_cost, report.gridmind.import_cost if report.gridmind else None, report.currency),
+             ("Export credit", report.baseline.export_credit, report.gridmind.export_credit if report.gridmind else None, report.currency),
              ("Net estimated cost", report.baseline.net_cost, report.gridmind.net_cost if report.gridmind else None, report.currency)]
     lines.extend(f"| {name} | {fmt(base)} | {fmt(opt)} | {unit} |" for name, base, opt, unit in items)
     lines += ["", "## Validation", "",
@@ -354,7 +366,7 @@ def render_markdown(report: GridMindReport) -> str:
     if report.gridmind:
         lines.append(f"GridMind: energy balance {report.gridmind.energy_balance_valid}; battery constraints {report.gridmind.battery_constraints_valid}; tariff costs {report.gridmind.tariff_costs_valid}.")
     if report.comparison_rows:
-        lines += ["", "## Baseline vs GridMind", "", "| Metric | Baseline | GridMind | Change | Change % | Unit | Interpretation |", "|---|---:|---:|---:|---:|---|---|"]
+        lines += ["", "## Baseline vs GridMind", "", "| Metric | Baseline | GridMind | Savings / change | Change % | Unit | Interpretation |", "|---|---:|---:|---:|---:|---|---|"]
         lines.extend(f"| {r.metric} | {fmt(r.baseline)} | {fmt(r.gridmind)} | {fmt(r.change)} | {fmt(r.change_percent)} | {r.unit} | {r.favorable_direction} |" for r in report.comparison_rows)
     lines += ["", "## Assumptions", ""] + [f"- {x}" for x in report.assumptions]
     lines += ["", "## Limitations", ""] + [f"- {x}" for x in report.limitations]
