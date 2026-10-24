@@ -96,15 +96,15 @@ class OptimizationResult:
         return self.total_cost
 
 
-def _state_levels(capacity: float, initial: float, terminal: float, step: float) -> list[float]:
-    regular_count = math.floor(capacity / step)
+def _state_levels(minimum: float, maximum: float, initial: float, terminal: float, step: float) -> list[float]:
+    regular_count = math.floor((maximum - minimum) / step)
     if regular_count > 1000:
         raise ValueError(
             "soc_step_kwh creates more than 1001 regular states; use a coarser step"
         )
-    levels = {0.0, capacity, initial, terminal}
-    levels.update(round(index * step, 12) for index in range(regular_count + 1))
-    return sorted(value for value in levels if 0 <= value <= capacity)
+    levels = {minimum, maximum, initial, terminal}
+    levels.update(round(minimum + index * step, 12) for index in range(regular_count + 1))
+    return sorted(value for value in levels if minimum <= value <= maximum)
 
 
 def _transition(
@@ -199,11 +199,13 @@ def optimize_dispatch(
     battery = config.battery
     initial_soc = battery.initial_soc_kwh
     terminal_soc = initial_soc if options.terminal_soc_kwh is None else options.terminal_soc_kwh
-    if terminal_soc > battery.capacity_kwh:
-        raise ValueError("terminal_soc_kwh cannot exceed battery capacity")
+    if terminal_soc < battery.min_soc_kwh:
+        raise ValueError("terminal_soc_kwh cannot be below battery min_soc_kwh")
+    if terminal_soc > battery.max_soc_kwh:
+        raise ValueError("terminal_soc_kwh cannot exceed battery max_soc_kwh")
 
     states = _state_levels(
-        battery.capacity_kwh, initial_soc, terminal_soc, options.soc_step_kwh
+        battery.min_soc_kwh, battery.max_soc_kwh, initial_soc, terminal_soc, options.soc_step_kwh
     )
     if len(states) > 1001:
         raise ValueError(
@@ -237,8 +239,8 @@ def optimize_dispatch(
                 continue
             max_charge = battery.max_charge_power_kw * (config.interval_minutes / 60) * battery.charge_efficiency
             max_discharge = battery.max_discharge_power_kw * (config.interval_minutes / 60) / battery.discharge_efficiency
-            lower_soc = max(0.0, current_soc - max_discharge)
-            upper_soc = min(battery.capacity_kwh, current_soc + max_charge)
+            lower_soc = max(battery.min_soc_kwh, current_soc - max_discharge)
+            upper_soc = min(battery.max_soc_kwh, current_soc + max_charge)
             if not options.allow_grid_charging:
                 solar_surplus = max(0.0, solar_point.value - demand_point.value)
                 upper_soc = min(upper_soc, current_soc + solar_surplus * battery.charge_efficiency)

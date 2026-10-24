@@ -122,6 +122,8 @@ class BatteryConfig:
     charge_efficiency: float = 1.0
     discharge_efficiency: float = 1.0
     initial_soc_kwh: float = 0.0
+    min_soc_kwh: float = 0.0
+    max_soc_kwh: float | None = None
 
     def __post_init__(self) -> None:
         _finite_number(self.capacity_kwh, "capacity_kwh", minimum=0)
@@ -129,14 +131,24 @@ class BatteryConfig:
             raise ValueError("capacity_kwh must be greater than zero")
         _finite_number(self.max_charge_power_kw, "max_charge_power_kw", minimum=0)
         _finite_number(self.max_discharge_power_kw, "max_discharge_power_kw", minimum=0)
+        max_soc = self.capacity_kwh if self.max_soc_kwh is None else self.max_soc_kwh
+        _finite_number(self.min_soc_kwh, "min_soc_kwh", minimum=0)
+        _finite_number(max_soc, "max_soc_kwh", minimum=0)
+        if self.min_soc_kwh > max_soc:
+            raise ValueError("min_soc_kwh cannot exceed max_soc_kwh")
+        if max_soc > self.capacity_kwh:
+            raise ValueError("max_soc_kwh cannot exceed capacity_kwh")
+        object.__setattr__(self, "max_soc_kwh", max_soc)
         for name in ("charge_efficiency", "discharge_efficiency"):
             value = getattr(self, name)
             _finite_number(value, name, minimum=0)
             if value == 0 or value > 1:
                 raise ValueError(f"{name} must be in the interval (0, 1]")
         _finite_number(self.initial_soc_kwh, "initial_soc_kwh", minimum=0)
-        if self.initial_soc_kwh > self.capacity_kwh:
-            raise ValueError("initial_soc_kwh cannot exceed capacity_kwh")
+        if self.initial_soc_kwh < self.min_soc_kwh:
+            raise ValueError("initial_soc_kwh must be at least min_soc_kwh")
+        if self.initial_soc_kwh > max_soc:
+            raise ValueError("initial_soc_kwh cannot exceed max_soc_kwh")
 
 
 @dataclass(frozen=True, slots=True)

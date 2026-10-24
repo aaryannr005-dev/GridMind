@@ -52,8 +52,17 @@ class ConfigurationTests(unittest.TestCase):
     def test_rejects_invalid_battery_limits(self):
         with self.assertRaisesRegex(ValueError, "cannot exceed"):
             BatteryConfig(10, 5, 5, initial_soc_kwh=11)
+        with self.assertRaisesRegex(ValueError, "min_soc_kwh"):
+            BatteryConfig(10, 5, 5, initial_soc_kwh=1, min_soc_kwh=2)
+        with self.assertRaisesRegex(ValueError, "capacity"):
+            BatteryConfig(10, 5, 5, max_soc_kwh=11)
+        with self.assertRaisesRegex(ValueError, "min_soc_kwh"):
+            BatteryConfig(10, 5, 5, min_soc_kwh=4, max_soc_kwh=3)
         with self.assertRaisesRegex(ValueError, "interval"):
             BatteryConfig(10, 5, 5, charge_efficiency=0)
+
+    def test_default_maximum_soc_is_capacity(self):
+        self.assertEqual(BatteryConfig(10, 5, 5).max_soc_kwh, 10)
 
     def test_rejects_invalid_interval_and_currency(self):
         battery = BatteryConfig(10, 5, 5)
