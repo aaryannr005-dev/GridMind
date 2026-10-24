@@ -39,3 +39,21 @@ Timestamps must be timezone-aware and strictly increasing. Demand, solar, and ta
 `calculate_metrics(result, config, inputs)` summarizes either a baseline `SimulationResult` or an `OptimizationResult`. Energy totals use kWh; costs use the configured currency. These are modeled estimates derived from the scenario, not measured household outcomes. The function confirms that result timestamps, demand, solar generation, and tariff calculations match the supplied scenario, and reports energy-balance, battery-constraint, and tariff-cost checks.
 
 Solar self-consumption energy is direct solar supplied to demand plus solar energy sent into the battery. Its ratio is that amount divided by total solar generation; the ratio is `None` when generation is zero. Net cost is import cost minus export credit. `compare_strategies(baseline, optimized, config, inputs)` reports cost savings as baseline net cost minus optimized net cost, and grid-import reduction as baseline imports minus optimized imports. Solar self-consumption, export, and battery activity changes are optimized values minus baseline values, so positive values mean those quantities increased. Each percentage is its corresponding signed change or savings divided by the baseline value, multiplied by 100. It is `None` when the baseline denominator is zero or negative. A positive savings or import reduction is favorable for its stated objective; changes to solar self-consumption, exports, and battery activity are trade-offs that should be interpreted against the scenario objective.
+
+
+## Reproducible reports
+
+`generate_report(baseline, config, inputs, gridmind=None)` builds a reusable `GridMindReport` from completed outputs. It validates the supplied results through the metrics layer and does not rerun dispatch. The report includes per-interval rows, summary metrics and validation flags, reproducibility fingerprint, scenario assumptions and limitations, plus comparison rows when an optimized result is supplied. `render_markdown(report)` creates a text report; `report.charts` contains dependency-free SVG charts based on the same results and metrics.
+
+For intervals of one hour or less that align cleanly to clock hours, hourly summaries group each interval by its local start hour and retain the final interval's state of charge. Partial first and last hours remain partial. Reports retain the original interval data. If intervals are longer than an hour, do not divide evenly into an hour, or cross clock-hour boundaries, the report does not invent hourly splits and leaves hourly summaries unavailable. Energy is shown in kWh; state of charge is shown as a percentage of nominal battery capacity. Costs are modeled estimates in the scenario currency, not measured bills. The report identifies that grid limits, battery degradation, temperature, and ageing are not included in the current model.
+
+```python
+from pathlib import Path
+from gridmind import generate_report, render_markdown, simulate, optimize_dispatch
+
+baseline = simulate(config, inputs)
+optimized = optimize_dispatch(config, inputs)
+report = generate_report(baseline, config, inputs, optimized)
+print(render_markdown(report))
+# Save an SVG chart if desired: Path("energy.svg").write_text(report.charts[0].svg)
+```
