@@ -84,7 +84,7 @@ class OpenDosmImportTests(unittest.TestCase):
             self.load("date,sector,consumption\n2026-01-01,total,1\n2026-01-01,total,2\n")
 
     def test_rejects_invalid_numeric_values(self):
-        for value in ("not-a-number", "NaN", "inf", "-inf", "-1"):
+        for value in ("not-a-number", "NaN", "inf", "-inf", "-1", "-1e-400", "1e-400"):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.load(f"date,sector,consumption\n2026-01-01,total,{value}\n")
 
@@ -102,6 +102,11 @@ class OpenDosmImportTests(unittest.TestCase):
                 self.load(text)
         with self.assertRaisesRegex(ValueError, "readable text stream"):
             load_open_dosm_csv(ELECTRICITY_CONSUMPTION, object())
+        read_only = type("ReadOnly", (), {"read": lambda self: ""})()
+        with self.assertRaisesRegex(ValueError, "readable text stream"):
+            load_open_dosm_csv(ELECTRICITY_CONSUMPTION, read_only)
+        with self.assertRaisesRegex(ValueError, "metadata must be DatasetMetadata"):
+            type(ELECTRICITY_CONSUMPTION)(metadata=None)
 
 
 if __name__ == "__main__":

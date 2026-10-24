@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 import math
 from types import MappingProxyType
@@ -48,12 +49,40 @@ class DatasetMetadata:
     provisional_months: int
     caveat: str
 
+    def __post_init__(self) -> None:
+        text_fields = (
+            self.dataset_id, self.title, self.description, self.publisher,
+            self.dataset_url, self.csv_url, self.license_name, self.license_url,
+            self.geographic_coverage, self.frequency, self.unit,
+            self.date_column, self.category_column, self.value_column,
+            self.next_update, self.caveat,
+        )
+        if any(not isinstance(value, str) or not value.strip() for value in text_fields):
+            raise ValueError("dataset metadata text fields must be non-empty strings")
+        if not isinstance(self.data_sources, tuple) or not self.data_sources or any(
+            not isinstance(source, str) or not source.strip() for source in self.data_sources
+        ):
+            raise ValueError("data_sources must be a non-empty tuple of names")
+        if not isinstance(self.categories, frozenset) or not self.categories or any(
+            not isinstance(category, str) or not category.strip() for category in self.categories
+        ):
+            raise ValueError("categories must be a non-empty frozenset of names")
+        for name in ("data_as_of", "last_updated", "metadata_checked_on"):
+            if type(getattr(self, name)) is not date:
+                raise ValueError(f"{name} must be a date")
+        if isinstance(self.provisional_months, bool) or not isinstance(self.provisional_months, int) or self.provisional_months <= 0:
+            raise ValueError("provisional_months must be a positive integer")
+
 
 @dataclass(frozen=True, slots=True)
 class OpenDosmDataset:
     """A dataset's verified metadata and its known categorical values."""
 
     metadata: DatasetMetadata
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.metadata, DatasetMetadata):
+            raise ValueError("metadata must be DatasetMetadata")
 
 
 _DATA_SOURCES = (
@@ -227,15 +256,15 @@ def load_open_dosm_csv(dataset: OpenDosmDataset, stream: TextIO) -> OpenDosmSeri
 
     if not isinstance(dataset, OpenDosmDataset):
         raise ValueError("dataset must be an OpenDosmDataset")
-    if not hasattr(stream, "read"):
+    if not callable(getattr(stream, "read", None)) or not hasattr(stream, "__iter__"):
         raise ValueError("stream must be a readable text stream")
 
     metadata = dataset.metadata
     try:
         reader = csv.DictReader(stream, strict=True)
         headers = reader.fieldnames
-    except (csv.Error, UnicodeError) as exc:
-        raise ValueError("CSV header could not be read") from exc
+    except (csv.Error, UnicodeError, TypeError) as exc:
+        raise ValueError("CSV header could not be read from a text stream") from exc
     if not headers:
         raise ValueError("CSV must include a header row")
     if len(headers) != len(set(headers)):
@@ -281,16 +310,26 @@ def load_open_dosm_csv(dataset: OpenDosmDataset, stream: TextIO) -> OpenDosmSeri
                 value = None
             else:
                 try:
-                    value = float(raw_value)
-                except ValueError as exc:
+                    decimal_value = Decimal(raw_value)
+                except InvalidOperation as exc:
                     raise ValueError(f"CSV row {row_number} has a non-numeric {metadata.value_column}") from exc
-                if not math.isfinite(value):
+                if not decimal_value.is_finite():
                     raise ValueError(f"CSV row {row_number} {metadata.value_column} must be finite")
-                if value < 0:
+                if decimal_value < 0:
                     raise ValueError(f"CSV row {row_number} {metadata.value_column} must be nonnegative")
+                try:
+                    value = float(decimal_value)
+                except OverflowError as exc:
+                    raise ValueError(
+                        f"CSV row {row_number} {metadata.value_column} must be within the supported numeric range"
+                    ) from exc
+                if not math.isfinite(value):
+                    raise ValueError(f"CSV row {row_number} {metadata.value_column} must be within the supported numeric range")
+                if decimal_value != 0 and value == 0:
+                    raise ValueError(f"CSV row {row_number} {metadata.value_column} is too small to represent")
 
             observations.append(MonthlyObservation(period, raw_category, value, _status_for(period, metadata)))
-    except (csv.Error, UnicodeError) as exc:
+    except (csv.Error, UnicodeError, TypeError) as exc:
         raise ValueError(f"CSV row {reader.line_num} could not be parsed") from exc
 
     if not observations:
