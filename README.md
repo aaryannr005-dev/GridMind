@@ -1,8 +1,6 @@
 # GridMind
 
-GridMind is a developing energy simulation project. It currently provides **Module 1: Data Input & Configuration**, **Module 2: Energy Simulation Engine**, and **Module 3: Dispatch Optimizer**.
-
-Module 1 provides typed, immutable models and validation for demand, solar generation, tariffs, battery parameters, and aligned interval data. Module 2 runs a deterministic, self-consumption-first energy balance and reports interval energy flows and tariff costs/credits. Module 3 searches battery charge and discharge schedules to minimize modeled grid import costs minus export credits across the supplied horizon. It can consider grid charging, balances grid charging against solar export rates, curtails solar when export rates are negative, respects battery limits and a terminal state of charge, and uses a discrete state-of-charge resolution. It is an approximate optimizer whose accuracy depends on `soc_step_kwh`. It does not optimize battery sizing, demand response, or multi-site energy sharing.
+GridMind is a Python energy simulation and decision-support project. It provides typed input models, deterministic energy simulation with battery constraints, a discrete dispatch optimizer, performance metrics, and structured reports. The input models validate demand, solar generation, tariffs, battery parameters, and aligned interval data. The simulation follows a self-consumption-first energy balance and reports interval flows and tariff costs/credits. Dispatch optimization minimizes modeled grid import costs minus export credits across the supplied horizon; it can consider grid charging, balances grid charging against solar export rates, curtails solar when export rates are negative, respects battery limits and a terminal state of charge, and uses a discrete state-of-charge resolution. It is approximate, with accuracy affected by `soc_step_kwh`; it does not optimize battery sizing, demand response, or multi-site energy sharing.
 
 ## Requirements
 
@@ -60,3 +58,22 @@ print(render_markdown(report))
 # Save an SVG chart if desired: Path("energy.svg").write_text(report.charts[0].svg)
 ```
 
+## Public Malaysian electricity statistics
+
+GridMind can parse locally obtained OpenDOSM monthly electricity consumption and supply CSV files. The package makes no network requests and does not bundle a copy of either dataset. Obtain CSVs from the official dataset pages: [Monthly Electricity Consumption](https://open.dosm.gov.my/data-catalogue/electricity_consumption) and [Monthly Electricity Supply](https://open.dosm.gov.my/data-catalogue/electricity_supply). Both pages identify the datasets as CC BY 4.0 and report national monthly sector totals in million kWh.
+
+`gridmind.public_data` exposes the dataset title, publisher and contributing sources, source and download URLs, licence, national coverage, unit, frequency, data-as-of date, last-updated date, next-update information, and the date the metadata was checked. OpenDOSM currently marks the most recent six months as provisional and subject to revision. Blank numeric cells remain explicit missing values; absent months within each observed sector range are listed as gaps. Dates later than the checked data-as-of month receive an `unknown` status until their provenance is refreshed. No values are filled, rescaled, or mapped into household simulation inputs.
+
+When redistributing or displaying these statistics, retain the dataset title and source links, link to the [CC BY 4.0 licence](https://creativecommons.org/licenses/by/4.0/), and describe any modifications. The current parser preserves reported values and units while converting CSV strings into typed monthly records. These national aggregate statistics are context only; they are not household profiles, measured consumer telemetry, or real-time grid data.
+
+Example (after obtaining the CSV separately):
+
+```python
+from gridmind import ELECTRICITY_CONSUMPTION, load_open_dosm_csv
+
+with open("electricity_consumption.csv", encoding="utf-8", newline="") as source:
+    monthly = load_open_dosm_csv(ELECTRICITY_CONSUMPTION, source)
+
+print(monthly.metadata.title, monthly.metadata.license_url)
+print(monthly.observations[0], monthly.missing_periods)
+```
