@@ -8,7 +8,7 @@ reported as a percentage of configured battery capacity.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import html
 import json
@@ -125,10 +125,11 @@ def _hourly(rows: tuple[IntervalReportRow, ...], interval_minutes: int) -> tuple
         return None
     grouped: dict[datetime, list[IntervalReportRow]] = {}
     for row in rows:
-        hour = row.timestamp.replace(minute=0, second=0, microsecond=0)
-        grouped.setdefault(hour, []).append(row)
+        utc_timestamp = row.timestamp.astimezone(timezone.utc)
+        utc_hour = utc_timestamp.replace(minute=0, second=0, microsecond=0)
+        grouped.setdefault(utc_hour, []).append(row)
     return tuple(HourlyReportRow(
-        hour_start=hour,
+        hour_start=hour.astimezone(items[0].timestamp.tzinfo),
         interval_count=len(items),
         demand_kwh=sum(item.demand_kwh for item in items),
         solar_generation_kwh=sum(item.solar_generation_kwh for item in items),
@@ -253,7 +254,7 @@ def generate_report(
     fingerprint = hashlib.sha256(json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     def plot_values(rows: tuple[IntervalReportRow, ...], hourly_rows: tuple[HourlyReportRow, ...] | None):
         display = hourly_rows if hourly_rows is not None else rows
-        timestamps = tuple((row.hour_start if isinstance(row, HourlyReportRow) else row.timestamp).strftime("%m-%d %H:%M") for row in display)
+        timestamps = tuple((row.hour_start if isinstance(row, HourlyReportRow) else row.timestamp).strftime("%m-%d %H:%M %z") for row in display)
         return display, timestamps
 
     base_plot, base_labels = plot_values(base_rows, hourly)
@@ -371,3 +372,4 @@ def render_markdown(report: GridMindReport) -> str:
     lines += ["", "## Assumptions", ""] + [f"- {x}" for x in report.assumptions]
     lines += ["", "## Limitations", ""] + [f"- {x}" for x in report.limitations]
     return "\n".join(lines)+"\n"
+

@@ -8,6 +8,7 @@ and ratios are ``None`` when their denominator is zero.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import math
 
 from .models import GridMindConfig, InputData
@@ -78,13 +79,55 @@ def _matches_input(result: SimulationOutput, inputs: InputData) -> bool:
     if len(result.intervals) != len(inputs.demand.points):
         return False
     return all(
-        interval.timestamp == demand.timestamp == solar.timestamp
+        interval.timestamp.astimezone(timezone.utc)
+        == demand.timestamp.astimezone(timezone.utc)
+        == solar.timestamp.astimezone(timezone.utc)
         and math.isclose(interval.demand_kwh, demand.value, rel_tol=0.0, abs_tol=_TOLERANCE)
         and math.isclose(interval.solar_generation_kwh, solar.value, rel_tol=0.0, abs_tol=_TOLERANCE)
         for interval, demand, solar in zip(
             result.intervals, inputs.demand.points, inputs.solar.points
         )
     )
+
+
+def _validate_result_values(result: SimulationOutput) -> None:
+    def is_finite_number(value: object) -> bool:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return False
+        try:
+            return math.isfinite(value)
+        except OverflowError:
+            return False
+
+    expected = IntervalResult if isinstance(result, SimulationResult) else OptimizedInterval
+    if not isinstance(result.intervals, tuple) or any(
+        not isinstance(interval, expected) for interval in result.intervals
+    ):
+        raise ValueError("result intervals must contain the expected interval result type")
+    for interval in result.intervals:
+        if (
+            not isinstance(interval.timestamp, datetime)
+            or interval.timestamp.tzinfo is None
+            or interval.timestamp.utcoffset() is None
+        ):
+            raise ValueError("result interval timestamps must be timezone-aware")
+        for name in interval.__dataclass_fields__:
+            if name == "timestamp":
+                continue
+            value = getattr(interval, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"result interval {name} must be a finite number")
+            try:
+                finite = math.isfinite(value)
+            except OverflowError:
+                finite = False
+            if not finite:
+                raise ValueError(f"result interval {name} must be a finite number")
+    if isinstance(result, OptimizationResult):
+        for name in ("starting_soc_kwh", "terminal_soc_kwh", "soc_step_kwh", "total_cost"):
+            value = getattr(result, name)
+            if not is_finite_number(value):
+                raise ValueError(f"optimization result {name} must be a finite number")
 
 
 def calculate_metrics(
@@ -105,6 +148,7 @@ def calculate_metrics(
         raise ValueError("inputs must be an InputData")
     if not result.intervals:
         raise ValueError("result must contain at least one interval")
+    _validate_result_values(result)
     if result.currency != config.currency:
         raise ValueError("result currency must match config currency")
     if not _matches_input(result, inputs):
@@ -183,6 +227,13 @@ def calculate_metrics(
         )
         current_soc = interval.state_of_charge_kwh
 
+    accumulated_values = (
+        demand_total, solar_total, direct_solar, solar_charge_total, imports,
+        exports, charge_total, discharge_total, import_cost, export_credit,
+        max_load_error, max_solar_error, max_soc_error,
+    )
+    if not all(math.isfinite(value) for value in accumulated_values):
+        raise ValueError("result totals exceed the finite numeric range")
     solar_consumption = direct_solar + solar_charge_total
     self_consumption_ratio = solar_consumption / solar_total if solar_total > 0 else None
     if isinstance(result, OptimizationResult):
@@ -259,3 +310,4 @@ def compare_strategies(
         battery_discharge_change_kwh=discharge_change,
         battery_discharge_change_percent=(100 * discharge_change / baseline_metrics.battery_discharge_kwh if baseline_metrics.battery_discharge_kwh > 0 else None),
     )
+

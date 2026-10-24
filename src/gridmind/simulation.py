@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import math
 
 from .models import GridMindConfig, InputData
 
@@ -126,6 +127,14 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
         import_cost = grid_import * import_point.value
         export_rate = export_rates[index].value if export_rates is not None else 0.0
         export_credit = grid_export * export_rate
+        derived_values = (
+            solar_to_load, charge_input, battery_output, grid_import, grid_export,
+            state_of_charge, import_cost, export_credit, import_cost - export_credit,
+        )
+        if not all(math.isfinite(value) for value in derived_values):
+            raise ValueError(
+                "calculated interval flow or tariff cost exceeds the finite numeric range"
+            )
 
         results.append(
             IntervalResult(
@@ -144,4 +153,12 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
             )
         )
 
+    totals = (
+        sum(item.import_cost for item in results),
+        sum(item.export_credit for item in results),
+        sum(item.net_cost for item in results),
+    )
+    if not all(math.isfinite(value) for value in totals):
+        raise ValueError("total tariff costs exceed the finite numeric range")
     return SimulationResult(intervals=tuple(results), currency=config.currency)
+

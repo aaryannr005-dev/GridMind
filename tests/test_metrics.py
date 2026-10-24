@@ -112,6 +112,15 @@ class MetricsTests(unittest.TestCase):
         self.assertFalse(metrics.tariff_costs_valid)
         self.assertGreater(metrics.max_load_balance_error_kwh, 0)
 
+    def test_rejects_nonfinite_values_in_supplied_results(self):
+        config, inputs = scenario()
+        result = simulate(config, inputs)
+        changed = replace(result.intervals[0], grid_import_kwh=float("inf"))
+        invalid = replace(result, intervals=(changed, *result.intervals[1:]))
+        with self.assertRaisesRegex(ValueError, "finite number"):
+            calculate_metrics(invalid, config, inputs)
+
 
 if __name__ == "__main__":
     unittest.main()
+

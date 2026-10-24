@@ -161,6 +161,14 @@ def _transition(
     import_cost = grid_import * import_rate
     export_credit = grid_export * export_rate
     net_cost = import_cost - export_credit
+    if not all(math.isfinite(value) for value in (
+        charge_input, charge_from_solar, charge_from_grid, discharge,
+        grid_import, grid_export, solar_curtailment, import_cost,
+        export_credit, net_cost,
+    )):
+        raise ValueError(
+            "calculated dispatch flow or tariff cost exceeds the finite numeric range"
+        )
     return (
         charge_input,
         charge_from_solar,
@@ -262,6 +270,8 @@ def optimize_dispatch(
                 if action is None:
                     continue
                 candidate_cost = current_cost + action[-1]
+                if not math.isfinite(candidate_cost):
+                    raise ValueError("total dispatch cost exceeds the finite numeric range")
                 if candidate_cost < next_costs[next_index] - 1e-12:
                     next_costs[next_index] = candidate_cost
                     parents[next_index] = current_index
@@ -326,3 +336,4 @@ def optimize_dispatch(
         soc_step_kwh=options.soc_step_kwh,
         total_cost=costs[terminal_index],
     )
+
