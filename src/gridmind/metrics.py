@@ -62,6 +62,10 @@ class StrategyComparison:
     solar_self_consumption_change_percent: float | None
     solar_export_change_kwh: float
     solar_export_change_percent: float | None
+    battery_charge_change_kwh: float
+    battery_charge_change_percent: float | None
+    battery_discharge_change_kwh: float
+    battery_discharge_change_percent: float | None
 
 
 def _interval_charge_sources(interval: IntervalResult | OptimizedInterval) -> tuple[float, float]:
@@ -237,6 +241,8 @@ def compare_strategies(
     grid_reduction = baseline_metrics.grid_import_kwh - optimized_metrics.grid_import_kwh
     solar_change = optimized_metrics.solar_self_consumption_kwh - baseline_metrics.solar_self_consumption_kwh
     export_change = optimized_metrics.grid_export_kwh - baseline_metrics.grid_export_kwh
+    charge_change = optimized_metrics.battery_charge_kwh - baseline_metrics.battery_charge_kwh
+    discharge_change = optimized_metrics.battery_discharge_kwh - baseline_metrics.battery_discharge_kwh
     return StrategyComparison(
         baseline=baseline_metrics,
         optimized=optimized_metrics,
@@ -248,4 +254,8 @@ def compare_strategies(
         solar_self_consumption_change_percent=(100 * solar_change / baseline_metrics.solar_self_consumption_kwh if baseline_metrics.solar_self_consumption_kwh > 0 else None),
         solar_export_change_kwh=export_change,
         solar_export_change_percent=(100 * export_change / baseline_metrics.grid_export_kwh if baseline_metrics.grid_export_kwh > 0 else None),
+        battery_charge_change_kwh=charge_change,
+        battery_charge_change_percent=(100 * charge_change / baseline_metrics.battery_charge_kwh if baseline_metrics.battery_charge_kwh > 0 else None),
+        battery_discharge_change_kwh=discharge_change,
+        battery_discharge_change_percent=(100 * discharge_change / baseline_metrics.battery_discharge_kwh if baseline_metrics.battery_discharge_kwh > 0 else None),
     )
