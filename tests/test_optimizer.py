@@ -122,6 +122,26 @@ class OptimizerTests(unittest.TestCase):
                 OptimizationConfig(terminal_soc_kwh=2),
             )
 
+    def test_respects_minimum_and_maximum_battery_soc(self):
+        config = GridMindConfig(BatteryConfig(5, 5, 5, initial_soc_kwh=2, min_soc_kwh=1, max_soc_kwh=3))
+        result = optimize_dispatch(
+            config,
+            make_inputs([5, 0], [0, 5], [1, 0]),
+            OptimizationConfig(soc_step_kwh=0.5, terminal_soc_kwh=2),
+        )
+        for interval in result.intervals:
+            self.assertGreaterEqual(interval.state_of_charge_kwh, 1)
+            self.assertLessEqual(interval.state_of_charge_kwh, 3)
+
+    def test_rejects_terminal_soc_below_minimum(self):
+        config = GridMindConfig(BatteryConfig(5, 5, 5, initial_soc_kwh=2, min_soc_kwh=1))
+        with self.assertRaisesRegex(ValueError, "min_soc_kwh"):
+            optimize_dispatch(
+                config,
+                make_inputs([0], [0], [0]),
+                OptimizationConfig(terminal_soc_kwh=0),
+            )
+
     def test_rejects_invalid_resolution(self):
         with self.assertRaisesRegex(ValueError, "positive finite"):
             OptimizationConfig(soc_step_kwh=0)
