@@ -75,6 +75,10 @@ class MetricsTests(unittest.TestCase):
         self.assertAlmostEqual(comparison.solar_self_consumption_change_percent, -100)
         self.assertAlmostEqual(comparison.solar_export_change_kwh, 1)
         self.assertAlmostEqual(comparison.solar_export_change_percent, 100)
+        self.assertAlmostEqual(comparison.battery_charge_change_kwh, -1)
+        self.assertAlmostEqual(comparison.battery_charge_change_percent, -100)
+        self.assertAlmostEqual(comparison.battery_discharge_change_kwh, 0)
+        self.assertIsNone(comparison.battery_discharge_change_percent)
 
     def test_zero_denominators_produce_undefined_percentages(self):
         config, inputs = scenario(demand=(0,), solar=(0,), imports=(0,), exports=(0,))
@@ -88,6 +92,8 @@ class MetricsTests(unittest.TestCase):
         self.assertIsNone(comparison.grid_import_reduction_percent)
         self.assertIsNone(comparison.solar_self_consumption_change_percent)
         self.assertIsNone(comparison.solar_export_change_percent)
+        self.assertIsNone(comparison.battery_charge_change_percent)
+        self.assertIsNone(comparison.battery_discharge_change_percent)
 
     def test_rejects_outputs_from_a_different_demand_scenario(self):
         config, inputs = scenario()
