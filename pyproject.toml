@@ -13,6 +13,7 @@ authors = [{ name = "GridMind contributors" }]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+dashboard = ["streamlit>=1.65,<2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
