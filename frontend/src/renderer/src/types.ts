@@ -9,6 +9,7 @@ export interface NavigationItem {
 
 export interface DesktopBridge {
   platform: string;
+  runHourlyScenario: import("../../shared/protocol").DesktopBridge["runHourlyScenario"];
 }
 
 declare global {

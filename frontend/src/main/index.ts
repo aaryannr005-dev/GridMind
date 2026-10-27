@@ -1,7 +1,26 @@
-import { app, BrowserWindow, shell } from "electron";
-import { join } from "node:path";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { join, resolve } from "node:path";
+import { EngineClient } from "./engine-client";
+import { isRunHourlyScenarioPayload } from "../shared/protocol";
 
 const isDevelopment = !app.isPackaged;
+let mainWindow: BrowserWindow | null = null;
+const engineClient = new EngineClient({
+  appRoot: resolve(app.getAppPath(), ".."),
+  resourcesPath: process.resourcesPath,
+  platform: process.platform,
+  packaged: app.isPackaged,
+});
+
+ipcMain.handle("gridmind:run-hourly-scenario", (event, payload: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    throw new Error("Unauthorized engine request");
+  }
+  if (!isRunHourlyScenarioPayload(payload)) {
+    throw new Error("Scenario request has an invalid shape");
+  }
+  return engineClient.runHourlyScenario(payload);
+});
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -17,6 +36,10 @@ function createWindow(): void {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+  mainWindow = window;
+  window.on("closed", () => {
+    if (mainWindow === window) mainWindow = null;
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -47,3 +70,5 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
+app.on("before-quit", () => engineClient.close());
