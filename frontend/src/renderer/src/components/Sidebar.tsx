@@ -28,6 +28,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
             key={item.id}
             type="button"
             className={`nav-item ${activePage === item.id ? "active" : ""}`}
+            aria-label={item.label}
             aria-current={activePage === item.id ? "page" : undefined}
             onClick={() => onNavigate(item.id)}
           >

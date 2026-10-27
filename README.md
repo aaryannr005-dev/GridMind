@@ -24,6 +24,10 @@ The starting profile is synthetic demonstration data. It is not measured househo
 
 Streamlit is an optional third-party dependency under Apache License 2.0; it is not added to GridMind's runtime dependencies. If preparing a packaged application, review and include notices for Streamlit and any bundled transitive dependencies.
 
+## React/Electron desktop foundation
+
+The `feat/react-electron-stage1-recreated` feature branch contains a separate React + TypeScript + Electron desktop shell. Stage 1 provides local navigation and truthful empty/placeholder states only; it does not connect to the Python engine, run simulations, or display modeled results. To work on it, follow the commands and requirements in [`frontend/README.md`](frontend/README.md). This branch is an implementation foundation and has not been merged into `main`.
+
 ## Quick start
 
     from datetime import datetime, timezone, timedelta
