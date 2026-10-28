@@ -1,4 +1,4 @@
-export type PageId = "home" | "simulation" | "reports" | "data" | "settings";
+export type PageId = "home" | "simulation" | "reports" | "energy-map" | "data" | "settings";
 
 export interface NavigationItem {
   id: PageId;

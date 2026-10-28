@@ -121,6 +121,15 @@ describe("GridMind desktop shell", () => {
     expect(screen.getByRole("heading", { name: "No completed reports yet" })).toBeInTheDocument();
   });
 
+  it("shows official map provenance and links without embedding third-party map data", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Energy map" }));
+    expect(screen.getByText("Historical reference, not live grid data")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /official Energy Commission map publication/ })).toHaveAttribute("href", "https://www.st.gov.my/resources/performance-statistical-information-malaysian-electricity-supply-industry-2021");
+    expect(screen.getByRole("link", { name: /Open MyGDI Explorer/ })).toHaveAttribute("href", "https://mygdix.mygeoportal.gov.my/");
+    expect(screen.getByText(/does not reproduce it/)).toBeInTheDocument();
+  });
+
   it("shows the latest completed report with provenance and engine results", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));

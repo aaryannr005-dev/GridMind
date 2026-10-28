@@ -201,6 +201,11 @@ h1, h2, h3, p { margin-top: 0; }
 .preference-option strong { color: #d5dceb; font-size: 11px; font-weight: 600; }
 .preference-option small { color: #8995aa; font-size: 9px; line-height: 1.45; }
 .preference-save-status { margin: 0; color: #8ca997; font-size: 9px; }
+.energy-map-source { display: grid; gap: 12px; }
+.energy-map-source > p { margin: 0; max-width: 860px; color: #9ca7ba; font-size: 10px; line-height: 1.65; }
+.energy-map-source .energy-map-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; min-height: 38px; text-decoration: none; }
+.energy-map-source .energy-map-catalogue-link { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 0 12px; text-decoration: none; }
+.energy-map-source .energy-map-attribution { color: #7f8ba2; font-size: 9px; }
 .page-intro { padding: 11px 0 2px; }
 .page-intro h1 { margin: 9px 0 5px; font: 700 29px "Segoe UI", sans-serif; letter-spacing: -1px; }
 .page-intro p { margin: 0; color: #9ca7ba; font-size: 12px; }

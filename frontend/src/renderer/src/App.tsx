@@ -11,6 +11,7 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario-form";
 import { DEFAULT_DASHBOARD_PREFERENCES, loadDashboardPreferences, saveDashboardPreferences, type DashboardPreferences } from "./dashboard-preferences";
 import { PreferencesPage } from "./pages/PreferencesPage";
+import { EnergyMapPage } from "./pages/EnergyMapPage";
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
@@ -79,7 +80,9 @@ export default function App() {
               />
               : activePage === "reports"
                 ? <ReportsPage report={report} source={reportSource} onOpenSimulation={() => setActivePage("simulation")} />
-                : activePage === "settings"
+                : activePage === "energy-map"
+                  ? <EnergyMapPage />
+                  : activePage === "settings"
                   ? <PreferencesPage preferences={dashboardPreferences} onChange={updateDashboardPreferences} onReset={resetDashboardPreferences} isSaved={preferencesSaved} />
                   : <PlaceholderPage page={page} />}
           <footer className="app-footer"><span>GRIDMIND <b>•</b> LOCAL ENERGY SIMULATION</span><span>{report ? "SCENARIO LOADED · " + (reportSource === "custom" ? "USER INPUTS" : "SYNTHETIC EXAMPLE") : "NO SCENARIO LOADED"}</span></footer>
