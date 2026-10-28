@@ -80,8 +80,8 @@ jobs:
               battery = $validPayload.battery
             }
           } | ConvertTo-Json -Depth 8 -Compress
-          $input = "not-json`n$validRequest`n$invalidRequest`n"
-          $responses = $input | & frontend/build/gridmind-engine.exe
+          $requestLines = @("not-json", $validRequest, $invalidRequest)
+          $responses = $requestLines | & "frontend/build/gridmind-engine.exe"
           if ($LASTEXITCODE -ne 0) { throw "Engine exited with code $LASTEXITCODE" }
           $messages = @($responses | ForEach-Object { $_ | ConvertFrom-Json })
           if ($messages.Count -ne 3) { throw "Expected three protocol messages; got $($messages.Count)" }
