@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "GridMind local-first desktop shell",
+  "author": "GridMind contributors",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -11,7 +12,8 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "package:win": "node ../scripts/check_engine_artifact.cjs && npx --yes electron-builder@26.18.0 --win nsis --x64"
   },
   "dependencies": {
     "react": "^19.1.1",
@@ -29,5 +31,40 @@
     "typescript": "^5.9.2",
     "vite": "^7.1.5",
     "vitest": "^5.0.5"
+  },
+  "build": {
+    "appId": "com.gridmind.desktop",
+    "productName": "GridMind",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/gridmind-engine.exe",
+        "to": "gridmind-engine/gridmind-engine.exe"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "selectPerMachineByDefault": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "artifactName": "GridMind-Setup-${version}.${ext}"
   }
 }

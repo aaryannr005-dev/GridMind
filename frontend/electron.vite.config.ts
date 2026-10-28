@@ -9,7 +9,12 @@ export default defineConfig({
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
-    build: { rollupOptions: { input: { index: resolve(__dirname, "src/preload/index.ts") } } },
+    build: {
+      rollupOptions: {
+        input: { index: resolve(__dirname, "src/preload/index.ts") },
+        output: { format: "cjs", entryFileNames: "index.cjs" },
+      },
+    },
   },
   renderer: {
     resolve: { alias: { "@renderer": resolve(__dirname, "src/renderer/src") } },

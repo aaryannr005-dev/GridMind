@@ -1,0 +1,141 @@
+name: Windows desktop installer
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "frontend/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows-desktop.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "frontend/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows-desktop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            scripts/requirements-build.txt
+
+      - name: Install Python test and packaging dependencies
+        run: python -m pip install -e ".[test]" -r scripts/requirements-build.txt
+
+      - name: Run Python tests
+        run: python -m pytest
+
+      - name: Build self-contained Python engine
+        run: python scripts/build_engine.py
+
+      - name: Smoke-test executable JSON-lines protocol
+        shell: pwsh
+        run: |
+          $validPayload = @{
+            start_date = "2026-01-15"
+            demand_kwh = @(1.0) * 24
+            solar_generation_kwh = @(0.0) * 24
+            import_rate_per_kwh = @(0.2) * 24
+            export_rate_per_kwh = @(0.05) * 24
+            battery = @{
+              capacity_kwh = 4.0
+              max_charge_power_kw = 2.0
+              max_discharge_power_kw = 2.0
+            }
+          }
+          $validRequest = @{
+            id = "windows-smoke"
+            operation = "run_hourly_scenario"
+            payload = $validPayload
+          } | ConvertTo-Json -Depth 8 -Compress
+          $invalidRequest = @{
+            id = "invalid-smoke"
+            operation = "run_hourly_scenario"
+            payload = @{
+              start_date = "2026-01-15"
+              demand_kwh = @(1.0) * 23
+              solar_generation_kwh = @(0.0) * 24
+              import_rate_per_kwh = @(0.2) * 24
+              export_rate_per_kwh = @(0.05) * 24
+              battery = $validPayload.battery
+            }
+          } | ConvertTo-Json -Depth 8 -Compress
+          $input = "not-json`n$validRequest`n$invalidRequest`n"
+          $responses = $input | & frontend/build/gridmind-engine.exe
+          if ($LASTEXITCODE -ne 0) { throw "Engine exited with code $LASTEXITCODE" }
+          $messages = @($responses | ForEach-Object { $_ | ConvertFrom-Json })
+          if ($messages.Count -ne 3) { throw "Expected three protocol messages; got $($messages.Count)" }
+          if ($messages[0].ok -or $messages[0].error.code -ne "MALFORMED_JSON") {
+            throw "Malformed JSON was not rejected with MALFORMED_JSON"
+          }
+          if (-not $messages[1].ok -or -not $messages[1].result.scenario_fingerprint -or -not $messages[1].result.charts.Count) {
+            throw "Valid scenario did not return a complete engine report"
+          }
+          if ($messages[2].ok -or $messages[2].error.code -ne "INVALID_SCENARIO") {
+            throw "Invalid scenario was not rejected with INVALID_SCENARIO"
+          }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Build Electron application
+        working-directory: frontend
+        run: npm run build
+
+      - name: Build Windows NSIS installer
+        working-directory: frontend
+        run: npm run package:win
+
+      - name: Verify installer and report artifact details
+        shell: pwsh
+        run: |
+          $installer = Get-Item "frontend/release/GridMind-Setup-*.exe"
+          if (-not $installer) { throw "NSIS installer was not produced" }
+          $version = (Get-Content frontend/package.json | ConvertFrom-Json).version
+          Write-Output "Installer: $($installer.FullName)"
+          Write-Output "Size bytes: $($installer.Length)"
+          Write-Output "Version: $version"
+
+      - name: Upload unsigned installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: GridMind-Windows-Beta-${{ github.run_number }}
+          path: frontend/release/GridMind-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 30
