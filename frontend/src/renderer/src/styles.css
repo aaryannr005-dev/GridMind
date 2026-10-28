@@ -204,6 +204,13 @@ h1, h2, h3, p { margin-top: 0; }
 .energy-map-source { display: grid; gap: 12px; }
 .energy-map-source > p { margin: 0; max-width: 860px; color: #9ca7ba; font-size: 10px; line-height: 1.65; }
 .energy-map-source .energy-map-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; min-height: 38px; text-decoration: none; }
+.energy-map-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.energy-map-viewer { display: grid; gap: 10px; margin-top: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(16,24,39,.75); }
+.energy-map-viewer .section-heading { align-items: center; }
+.energy-map-viewer h3 { margin: 5px 0 0; color: #dfe4f0; font-size: 13px; }
+.energy-map-viewer iframe { width: 100%; height: min(72vh, 820px); min-height: 440px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+.energy-map-viewer > p { margin: 0; color: #9ca7ba; font-size: 10px; }
+.energy-map-viewer > p a { color: #aaa0ff; }
 .energy-map-source .energy-map-catalogue-link { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 0 12px; text-decoration: none; }
 .energy-map-source .energy-map-attribution { color: #7f8ba2; font-size: 9px; }
 .page-intro { padding: 11px 0 2px; }
