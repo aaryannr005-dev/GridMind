@@ -57,7 +57,7 @@ export class EngineClient {
     } catch {
       return Promise.reject(new EngineClientError(
         "ENGINE_START_FAILED",
-        "Could not start the local Python engine. Check that Python 3.10 or newer is installed.",
+        "Could not start the local GridMind engine. Reinstall the app or check the engine files.",
       ));
     }
     const id = randomUUID();
@@ -118,7 +118,7 @@ export class EngineClient {
     child.on("error", () => {
       this.stopProcess(child, new EngineClientError(
         "ENGINE_START_FAILED",
-        "Could not start the local Python engine. Check that Python 3.10 or newer is installed.",
+        "Could not start the local GridMind engine. Reinstall the app or check the engine files.",
       ));
     });
     child.on("exit", (code, signal) => {

@@ -4,6 +4,8 @@ import { EngineClient } from "./engine-client";
 import { isRunHourlyScenarioPayload } from "../shared/protocol";
 
 const isDevelopment = !app.isPackaged;
+const applicationId = "com.gridmind.desktop";
+app.setAppUserModelId(applicationId);
 let mainWindow: BrowserWindow | null = null;
 const engineClient = new EngineClient({
   appRoot: resolve(app.getAppPath(), ".."),
@@ -31,7 +33,7 @@ function createWindow(): void {
     title: "GridMind",
     backgroundColor: "#0b1020",
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
+      preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
