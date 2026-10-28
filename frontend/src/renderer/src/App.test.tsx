@@ -1,15 +1,113 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { GridMindScenarioReport } from "../../shared/protocol";
 import App from "./App";
 
+const metrics = {
+  currency: "MYR",
+  interval_count: 24,
+  total_demand_kwh: 20,
+  total_solar_generation_kwh: 15,
+  direct_solar_consumption_kwh: 8,
+  solar_to_battery_kwh: 4,
+  solar_self_consumption_kwh: 12,
+  solar_self_consumption_ratio: 0.8,
+  grid_import_kwh: 8,
+  grid_export_kwh: 3,
+  battery_charge_kwh: 4,
+  battery_discharge_kwh: 3,
+  initial_soc_kwh: 5,
+  final_soc_kwh: 5,
+  import_cost: 2,
+  export_credit: 0.15,
+  net_cost: 1.85,
+  energy_balance_valid: true,
+  battery_constraints_valid: true,
+  tariff_costs_valid: true,
+  max_load_balance_error_kwh: 0,
+  max_solar_balance_error_kwh: 0,
+  max_soc_balance_error_kwh: 0,
+};
+
+function interval(hour: number) {
+  return {
+    timestamp: "2026-01-15T" + hour.toString().padStart(2, "0") + ":00:00+08:00",
+    demand_kwh: hour === 0 ? 0.55 : 0.5,
+    solar_generation_kwh: hour === 12 ? 1.85 : 0,
+    direct_solar_kwh: 0.2,
+    battery_charge_kwh: 0.3,
+    battery_discharge_kwh: 0,
+    grid_import_kwh: 0.25,
+    grid_export_kwh: 0,
+    state_of_charge_percent: 50 + hour,
+    import_cost: 0.05,
+    export_credit: 0,
+    net_cost: 0.05,
+    solar_curtailment_kwh: 0,
+    battery_charge_from_grid_kwh: 0,
+  };
+}
+
+const report = {
+  scenario_fingerprint: "sample-fingerprint",
+  period_start: "2026-01-15T00:00:00+08:00",
+  period_end: "2026-01-15T23:00:00+08:00",
+  interval_minutes: 60,
+  interval_count: 24,
+  duration_hours: 24,
+  currency: "MYR",
+  battery_capacity_kwh: 10,
+  baseline: metrics,
+  gridmind: { ...metrics, net_cost: 1.2, grid_import_kwh: 6 },
+  comparison: {
+    baseline: metrics,
+    optimized: { ...metrics, net_cost: 1.2, grid_import_kwh: 6 },
+    cost_savings: 0.65,
+    cost_savings_percent: 35,
+    grid_import_reduction_kwh: 2,
+    grid_import_reduction_percent: 25,
+    solar_self_consumption_change_kwh: 1,
+    solar_self_consumption_change_percent: 10,
+    solar_export_change_kwh: -1,
+    solar_export_change_percent: -20,
+    battery_charge_change_kwh: 0.5,
+    battery_charge_change_percent: 10,
+    battery_discharge_change_kwh: 0.5,
+    battery_discharge_change_percent: 10,
+  },
+  baseline_intervals: Array.from({ length: 24 }, (_, hour) => interval(hour)),
+  gridmind_intervals: Array.from({ length: 24 }, (_, hour) => interval(hour)),
+  baseline_hourly: [],
+  gridmind_hourly: [],
+  comparison_rows: [],
+  assumptions: ["Synthetic demonstration inputs."],
+  limitations: ["Does not model battery degradation."],
+  charts: [],
+} as GridMindScenarioReport;
+
+const runHourlyScenario = vi.fn();
+
+beforeEach(() => {
+  runHourlyScenario.mockReset();
+  runHourlyScenario.mockResolvedValue(report);
+  Object.defineProperty(window, "gridmindDesktop", {
+    configurable: true,
+    value: { platform: "linux", runHourlyScenario },
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  Reflect.deleteProperty(window, "gridmindDesktop");
+});
+
 describe("GridMind desktop shell", () => {
-  it("shows an honest empty home state without invented results", () => {
+  it("shows an honest empty dashboard before a scenario runs", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: /make every energy decision explainable/i })).toBeInTheDocument();
-    expect(screen.getByText(/no scenario has been loaded/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "No scenarios yet" })).toBeInTheDocument();
-    expect(screen.queryByText(/kwh|savings|simulated result/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
   });
 
   it("marks the selected page in the accessible navigation", () => {
@@ -21,19 +119,46 @@ describe("GridMind desktop shell", () => {
     expect(screen.getByRole("heading", { name: "Reports" })).toBeInTheDocument();
   });
 
-  it("labels unfinished screens as placeholders", () => {
+  it("keeps unfinished screens as honest placeholders", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
-    expect(screen.getByText("Not implemented in Stage 1")).toBeInTheDocument();
-    expect(screen.getByText(/does not load data, run calculations/i)).toBeInTheDocument();
+    expect(screen.getByText("This area is not implemented yet")).toBeInTheDocument();
+    expect(screen.getByText(/remains a navigation placeholder/i)).toBeInTheDocument();
   });
 
-  it("keeps the engine offline indicator visible across navigation", () => {
+  it("shows the idle engine state across navigation", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Data sources" }));
-    expect(screen.getByText("ENGINE OFFLINE")).toBeInTheDocument();
+    expect(screen.getByText("ENGINE IDLE")).toBeInTheDocument();
     expect(screen.getByText("NO SCENARIO LOADED")).toBeInTheDocument();
+  });
+
+  it("runs the labeled synthetic example and charts returned engine data", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      start_date: "2026-01-15",
+      currency: "MYR",
+      demand_kwh: expect.arrayContaining([0.55]),
+    })));
+    expect(await screen.findByRole("heading", { name: "Energy and battery profile" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Demand and solar generation/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Grid imports by strategy/i })).toBeInTheDocument();
+    expect(screen.getByText("+0.65 MYR")).toBeInTheDocument();
+    expect(screen.getByText("SCENARIO LOADED · SYNTHETIC EXAMPLE")).toBeInTheDocument();
+  });
+
+  it("shows engine failures without inventing results", async () => {
+    runHourlyScenario.mockRejectedValueOnce(new Error("Local Python engine unavailable"));
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+
+    expect(await screen.findByText(/Local Python engine unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
   });
 });

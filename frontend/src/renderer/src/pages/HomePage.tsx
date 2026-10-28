@@ -1,32 +1,82 @@
-import { EmptyState } from "../components/EmptyState";
+import type { GridMindScenarioReport } from "../../../shared/protocol";
+import { ScenarioCharts } from "../components/ScenarioCharts";
 import { FeedbackState } from "../components/FeedbackState";
 
-export function HomePage() {
+interface HomePageProps {
+  report: GridMindScenarioReport | null;
+  isRunning: boolean;
+  error: string | null;
+  onRunDemo: () => void;
+}
+
+function formatNumber(value: number | null | undefined, digits = 2): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "Not available";
+}
+
+function signed(value: number, unit: string): string {
+  return (value >= 0 ? "+" : "−") + formatNumber(Math.abs(value)) + " " + unit;
+}
+
+function ScenarioResults({ report }: { report: GridMindScenarioReport }) {
+  const optimized = report.gridmind;
+  const comparison = report.comparison;
+  const cards = [
+    { label: "Baseline net cost", value: formatNumber(report.baseline.net_cost) + " " + report.currency, detail: "Modeled for this scenario" },
+    { label: "GridMind net cost", value: optimized ? formatNumber(optimized.net_cost) + " " + report.currency : "Not available", detail: "Approximate cost optimizer" },
+    { label: "Cost difference", value: comparison ? signed(comparison.cost_savings, report.currency) : "Not available", detail: "Baseline minus GridMind; positive means lower modeled cost" },
+    { label: "Grid import reduction", value: comparison ? signed(comparison.grid_import_reduction_kwh, "kWh") : "Not available", detail: "Baseline imports minus GridMind imports" },
+  ];
+
+  return <div className="results-stack">
+    <FeedbackState kind="info" title="Modeled scenario results">
+      Synthetic demonstration inputs were sent to the local Python engine. Values below are estimates for this one-day scenario, not measured data or guaranteed savings.
+    </FeedbackState>
+    <div className="result-meta"><span>{report.period_start.slice(0, 10)} · {report.interval_count} intervals · {report.interval_minutes}-minute intervals</span><span>MYT (UTC+08:00) · {report.currency}</span></div>
+    <div className="metric-grid" aria-label="Scenario comparison metrics">
+      {cards.map((card) => <article className="metric-card" key={card.label}><span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}</small></article>)}
+    </div>
+    <section className="results-section">
+      <div className="section-heading"><div><span className="eyebrow">REAL ENGINE OUTPUTS</span><h2>Energy and battery profile</h2></div><span className="subtle-label">{report.interval_count} INTERVALS</span></div>
+      <ScenarioCharts baseline={report.baseline_intervals} optimized={report.gridmind_intervals} intervalMinutes={report.interval_minutes} />
+    </section>
+    <section className="results-section">
+      <div className="section-heading"><div><span className="eyebrow">BASELINE VS GRIDMIND</span><h2>Detailed comparison</h2></div></div>
+      <div className="table-scroll"><table className="comparison-table"><caption>Engine-calculated metrics; costs in {report.currency}, energy in kWh unless noted.</caption>
+        <thead><tr><th scope="col">Metric</th><th scope="col">Baseline</th><th scope="col">GridMind</th><th scope="col">Difference</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Net cost ({report.currency})</th><td>{formatNumber(report.baseline.net_cost)}</td><td>{formatNumber(optimized?.net_cost)}</td><td>{formatNumber(comparison?.cost_savings)}</td></tr>
+          <tr><th scope="row">Grid imports (kWh)</th><td>{formatNumber(report.baseline.grid_import_kwh)}</td><td>{formatNumber(optimized?.grid_import_kwh)}</td><td>{formatNumber(comparison?.grid_import_reduction_kwh)}</td></tr>
+          <tr><th scope="row">Solar self-consumption (kWh)</th><td>{formatNumber(report.baseline.solar_self_consumption_kwh)}</td><td>{formatNumber(optimized?.solar_self_consumption_kwh)}</td><td>{formatNumber(comparison?.solar_self_consumption_change_kwh)}</td></tr>
+          <tr><th scope="row">Grid exports (kWh)</th><td>{formatNumber(report.baseline.grid_export_kwh)}</td><td>{formatNumber(optimized?.grid_export_kwh)}</td><td>{formatNumber(comparison?.solar_export_change_kwh)}</td></tr>
+          <tr><th scope="row">Battery charged (kWh)</th><td>{formatNumber(report.baseline.battery_charge_kwh)}</td><td>{formatNumber(optimized?.battery_charge_kwh)}</td><td>{formatNumber(comparison?.battery_charge_change_kwh)}</td></tr>
+          <tr><th scope="row">Battery discharged (kWh)</th><td>{formatNumber(report.baseline.battery_discharge_kwh)}</td><td>{formatNumber(optimized?.battery_discharge_kwh)}</td><td>{formatNumber(comparison?.battery_discharge_change_kwh)}</td></tr>
+        </tbody>
+      </table></div>
+      {comparison && <p className="comparison-note">Differences follow the engine report: cost and grid import are baseline minus GridMind; other differences are GridMind minus baseline. Positive values are not automatically better for every objective.</p>}
+    </section>
+    <details className="assumptions-panel"><summary>Assumptions and model limitations</summary><div className="assumption-columns"><div><h3>Assumptions</h3><ul>{report.assumptions.map((item) => <li key={item}>{item}</li>)}</ul></div><div><h3>Limitations</h3><ul>{report.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div></div><p>Scenario fingerprint: <code>{report.scenario_fingerprint}</code></p></details>
+  </div>;
+}
+
+export function HomePage({ report, isRunning, error, onRunDemo }: HomePageProps) {
   return (
     <div className="page-stack">
-      <section className="welcome-panel">
+      <section className="welcome-panel dashboard-welcome">
         <div className="welcome-copy">
           <div className="eyebrow"><span className="eyebrow-line" /> ENERGY SYSTEMS WORKSPACE</div>
           <h1>Make every energy<br /><span>decision explainable.</span></h1>
-          <p>Model scenarios, compare strategies, and understand the assumptions behind every result.</p>
+          <p>Explore actual Python engine outputs with clear units, comparisons, and model assumptions.</p>
           <div className="welcome-tags"><span>LOCAL-FIRST</span><span>REPRODUCIBLE</span><span>PYTHON ENGINE</span></div>
         </div>
-        <div className="orbital-art" aria-hidden="true">
-          <div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit orbit-three" />
-          <div className="orb-core">G<span>↗</span></div>
-          <div className="orbit-label label-top">ENERGY FLOW</div><div className="orbit-label label-bottom">MODEL · VALIDATE · COMPARE</div>
-        </div>
+        <div className="orbital-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit orbit-three" /><div className="orb-core">G<span>↗</span></div><div className="orbit-label label-top">ENERGY FLOW</div><div className="orbit-label label-bottom">MODEL · VALIDATE · COMPARE</div></div>
       </section>
-      <FeedbackState kind="info" title="Engine not connected" >
-        This is the Stage 1 desktop foundation. No scenario has been loaded, and no simulation or optimisation has been run.
-      </FeedbackState>
-      <div className="section-heading"><div><span className="eyebrow">WORKSPACE STATUS</span><h2>Ready when you are</h2></div><span className="subtle-label">STAGE 1 OF 5</span></div>
-      <div className="status-grid">
-        <article className="status-card"><div className="card-icon icon-purple">◈</div><div><h3>Simulation lab</h3><p>Scenario inputs and validation</p></div><span className="status-pill">NOT CONNECTED</span></article>
-        <article className="status-card"><div className="card-icon icon-blue">⌁</div><div><h3>Energy analytics</h3><p>Charts from actual engine outputs</p></div><span className="status-pill">NOT AVAILABLE</span></article>
-        <article className="status-card"><div className="card-icon icon-amber">▤</div><div><h3>Reports</h3><p>Reproducible result summaries</p></div><span className="status-pill">NO REPORTS</span></article>
-      </div>
-      <EmptyState icon="⌘" title="No scenarios yet" description="The Python engine bridge will be introduced in Stage 2 after this foundation is reviewed and approved." />
+      <section className="demo-panel" aria-labelledby="demo-title">
+        <div><span className="eyebrow">SYNTHETIC EXAMPLE</span><h2 id="demo-title">Try the dashboard with a sample day</h2><p>Runs a fixed, clearly synthetic 24-hour profile through the local Python engine. No results are prefilled or fabricated.</p></div>
+        <button className="primary-button" type="button" onClick={onRunDemo} disabled={isRunning}>{isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running engine…</> : report ? "Run sample again" : "Run sample scenario"}</button>
+      </section>
+      {error && <FeedbackState kind="warning" title="Scenario could not be run">{error + " You can try again; no new results were shown."}</FeedbackState>}
+      {isRunning && <FeedbackState kind="info" title="Running locally">The Python engine is calculating the baseline and GridMind comparison. This may take a few seconds.</FeedbackState>}
+      {report ? <ScenarioResults report={report} /> : <section className="empty-dashboard"><span className="empty-icon">⌁</span><div><h2>No scenario results yet</h2><p>Run the synthetic example to see charts and comparisons generated from the local Python engine.</p></div></section>}
     </div>
   );
 }
