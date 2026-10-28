@@ -121,13 +121,20 @@ describe("GridMind desktop shell", () => {
     expect(screen.getByRole("heading", { name: "No completed reports yet" })).toBeInTheDocument();
   });
 
-  it("shows official map provenance and links without embedding third-party map data", () => {
+  it("shows the interactive historical map viewer and current data provenance", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Energy map" }));
     expect(screen.getByText("Historical reference, not live grid data")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /official Energy Commission map publication/ })).toHaveAttribute("href", "https://www.st.gov.my/resources/performance-statistical-information-malaysian-electricity-supply-industry-2021");
+    expect(screen.getByRole("link", { name: /Open Energy Commission source page/ })).toHaveAttribute("href", "https://www.st.gov.my/resources/performance-statistical-information-malaysian-electricity-supply-industry-2021");
     expect(screen.getByRole("link", { name: /Open MyGDI Explorer/ })).toHaveAttribute("href", "https://mygdix.mygeoportal.gov.my/");
-    expect(screen.getByText(/does not reproduce it/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Explore current statistics and download data/ })).toHaveAttribute("href", "https://open.dosm.gov.my/data-catalogue/electricity_supply");
+    expect(screen.getByText(/OpenDOSM publishes monthly electricity supply by sector under CC BY 4\.0/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "CC BY 4.0" })).toHaveAttribute("href", "https://creativecommons.org/licenses/by/4.0/");
+    expect(screen.getByRole("link", { name: /Open the 2022 publication page/ })).toHaveAttribute("href", "https://www.st.gov.my/maklumat-prestasi-statistik-industri-pembekalan-elektrik-malaysia-2022");
+    fireEvent.click(screen.getByRole("button", { name: /View the historical map in GridMind/ }));
+    expect(screen.getByTitle("Energy Commission 2021 electricity supply industry maps")).toHaveAttribute("src", "https://www.st.gov.my/sites/default/files/2026-02/ST_MAISPEM-2021-V15-30-Oct-2024.pdf");
+    fireEvent.click(screen.getByRole("button", { name: "Close map" }));
+    expect(screen.queryByTitle("Energy Commission 2021 electricity supply industry maps")).not.toBeInTheDocument();
   });
 
   it("shows the latest completed report with provenance and engine results", async () => {
