@@ -119,12 +119,14 @@ describe("GridMind desktop shell", () => {
     expect(screen.getByRole("heading", { name: "Reports" })).toBeInTheDocument();
   });
 
-  it("keeps unfinished screens as honest placeholders", () => {
+  it("shows the editable 24-hour Simulation Lab", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
-    expect(screen.getByText("This area is not implemented yet")).toBeInTheDocument();
-    expect(screen.getByText(/remains a navigation placeholder/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Hourly energy profile" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Export credit at 23:00 MYT" })).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(25);
   });
 
   it("shows the idle engine state across navigation", () => {
@@ -160,5 +162,32 @@ describe("GridMind desktop shell", () => {
 
     expect(await screen.findByText(/Local Python engine unavailable/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
+  });
+
+  it("validates edited input and displays local engine results for a custom scenario", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "2.75" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "-0.1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      demand_kwh: expect.arrayContaining([2.75]),
+      import_rate_per_kwh: expect.arrayContaining([-0.1]),
+      start_date: "2026-01-15",
+    })));
+    expect(await screen.findByRole("heading", { name: "Scenario results" })).toBeInTheDocument();
+    expect(screen.getByText(/Your scenario inputs were sent to the local Python engine/)).toBeInTheDocument();
+    expect(screen.getByText("SCENARIO LOADED · USER INPUTS")).toBeInTheDocument();
+  });
+
+  it("blocks invalid custom inputs before calling the engine", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/Demand at 00:00 MYT must be at least 0/i);
+    expect(runHourlyScenario).not.toHaveBeenCalled();
   });
 });
