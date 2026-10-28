@@ -5,6 +5,7 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 import { EngineClient } from "./engine-client";
 import type { RunHourlyScenarioPayload } from "../shared/protocol";
+import { validScenarioReport } from "../shared/protocol.fixtures";
 
 class FakeChild extends EventEmitter {
   stdin = new PassThrough();
@@ -23,13 +24,6 @@ function payload(): RunHourlyScenarioPayload {
     battery: { capacity_kwh: 4, max_charge_power_kw: 2, max_discharge_power_kw: 2 },
   };
 }
-
-const report = {
-  scenario_fingerprint: "test-fingerprint",
-  baseline: {},
-  baseline_intervals: [],
-  charts: [],
-};
 
 describe("EngineClient", () => {
   it("starts Python without a shell and resolves the matching structured report", async () => {
@@ -52,7 +46,7 @@ describe("EngineClient", () => {
     expect(spawnChild).toHaveBeenCalledWith("python3", ["-m", "gridmind.bridge"], expect.objectContaining({ shell: false }));
     expect(request.operation).toBe("run_hourly_scenario");
     expect(request.payload).toEqual(input);
-    child.stdout.write(`${JSON.stringify({ id: request.id, ok: true, result: report })}\n`);
+    child.stdout.write(`${JSON.stringify({ id: request.id, ok: true, result: validScenarioReport() })}\n`);
     await expect(result).resolves.toMatchObject({ scenario_fingerprint: "test-fingerprint" });
     client.close();
   });

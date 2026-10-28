@@ -179,14 +179,76 @@ export function isRunHourlyScenarioPayload(value: unknown): value is RunHourlySc
 
 export function isGridMindScenarioReport(value: unknown): value is GridMindScenarioReport {
   if (!isRecord(value)) return false;
-  return typeof value.scenario_fingerprint === "string"
-    && isRecord(value.baseline)
-    && Array.isArray(value.baseline_intervals)
-    && Array.isArray(value.charts)
-    && value.charts.every((chart) => isRecord(chart)
+  const finiteFields = (record: Record<string, unknown>, keys: readonly string[]) =>
+    keys.every((key) => isFiniteNumber(record[key]));
+  const nullableFiniteFields = (record: Record<string, unknown>, keys: readonly string[]) =>
+    keys.every((key) => record[key] === null || isFiniteNumber(record[key]));
+  const isMetrics = (metrics: unknown): metrics is EngineMetrics => {
+    if (!isRecord(metrics)) return false;
+    return typeof metrics.currency === "string"
+      && isFiniteNumber(metrics.interval_count)
+      && Number.isInteger(metrics.interval_count)
+      && metrics.interval_count > 0
+      && finiteFields(metrics, [
+        "total_demand_kwh", "total_solar_generation_kwh", "direct_solar_consumption_kwh",
+        "solar_to_battery_kwh", "solar_self_consumption_kwh", "grid_import_kwh", "grid_export_kwh",
+        "battery_charge_kwh", "battery_discharge_kwh", "initial_soc_kwh", "final_soc_kwh",
+        "import_cost", "export_credit", "net_cost", "max_load_balance_error_kwh",
+        "max_solar_balance_error_kwh", "max_soc_balance_error_kwh",
+      ])
+      && nullableFiniteFields(metrics, ["solar_self_consumption_ratio"])
+      && ["energy_balance_valid", "battery_constraints_valid", "tariff_costs_valid"]
+        .every((key) => typeof metrics[key] === "boolean");
+  };
+  const isInterval = (interval: unknown): interval is EngineInterval => {
+    if (!isRecord(interval)) return false;
+    return typeof interval.timestamp === "string"
+      && finiteFields(interval, [
+        "demand_kwh", "solar_generation_kwh", "direct_solar_kwh", "battery_charge_kwh",
+        "battery_discharge_kwh", "grid_import_kwh", "grid_export_kwh", "state_of_charge_percent",
+        "import_cost", "export_credit", "net_cost", "solar_curtailment_kwh", "battery_charge_from_grid_kwh",
+      ]);
+  };
+  const isComparison = (comparison: unknown): comparison is NonNullable<GridMindScenarioReport["comparison"]> => {
+    if (!isRecord(comparison)) return false;
+    return isMetrics(comparison.baseline)
+      && isMetrics(comparison.optimized)
+      && finiteFields(comparison, [
+        "cost_savings", "grid_import_reduction_kwh", "solar_self_consumption_change_kwh",
+        "solar_export_change_kwh", "battery_charge_change_kwh", "battery_discharge_change_kwh",
+      ])
+      && nullableFiniteFields(comparison, [
+        "cost_savings_percent", "grid_import_reduction_percent", "solar_self_consumption_change_percent",
+        "solar_export_change_percent", "battery_charge_change_percent", "battery_discharge_change_percent",
+      ]);
+  };
+  if (typeof value.scenario_fingerprint !== "string"
+    || typeof value.period_start !== "string"
+    || typeof value.period_end !== "string"
+    || typeof value.currency !== "string"
+    || !isFiniteNumber(value.interval_minutes) || value.interval_minutes <= 0
+    || !isFiniteNumber(value.interval_count) || !Number.isInteger(value.interval_count) || value.interval_count <= 0
+    || !isFiniteNumber(value.duration_hours) || value.duration_hours <= 0
+    || !isFiniteNumber(value.battery_capacity_kwh) || value.battery_capacity_kwh <= 0
+    || !isMetrics(value.baseline)
+    || (value.gridmind !== null && !isMetrics(value.gridmind))
+    || (value.comparison !== null && !isComparison(value.comparison))
+    || !Array.isArray(value.baseline_intervals) || !value.baseline_intervals.every(isInterval)
+    || value.baseline_intervals.length !== value.interval_count
+    || (value.gridmind_intervals !== null && (!Array.isArray(value.gridmind_intervals)
+      || !value.gridmind_intervals.every(isInterval) || value.gridmind_intervals.length !== value.interval_count))
+    || (value.baseline_hourly !== null && !Array.isArray(value.baseline_hourly))
+    || (value.gridmind_hourly !== null && !Array.isArray(value.gridmind_hourly))
+    || !Array.isArray(value.comparison_rows)
+    || !Array.isArray(value.assumptions) || !value.assumptions.every((item) => typeof item === "string")
+    || !Array.isArray(value.limitations) || !value.limitations.every((item) => typeof item === "string")
+    || !Array.isArray(value.charts)
+    || !value.charts.every((chart) => isRecord(chart)
       && typeof chart.title === "string"
       && typeof chart.description === "string"
-      && typeof chart.svg === "string");
+      && typeof chart.svg === "string")) return false;
+
+  return true;
 }
 
 export function decodeEngineResponse(value: unknown): EngineResponse {
