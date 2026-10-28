@@ -185,6 +185,14 @@ h1, h2, h3, p { margin-top: 0; }
 .validation-summary ul { display: grid; gap: 4px; margin: 9px 0 0; padding-left: 17px; color: #d1bc9a; }
 .validation-summary p { margin: 8px 0 0; color: #b6a383; }
 .form-results { display: grid; gap: 14px; padding-top: 8px; }
+.report-identity { display: grid; gap: 14px; }
+.report-metadata { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 11px 24px; margin: 0; }
+.report-metadata div { display: grid; gap: 4px; min-width: 0; }
+.report-metadata dt { color: #8490a5; font-size: 9px; text-transform: uppercase; letter-spacing: .07em; }
+.report-metadata dd { margin: 0; color: #d5dceb; font-size: 10px; overflow-wrap: anywhere; }
+.report-metadata code { color: #bbb1ff; font: 10px var(--mono); }
+.report-empty { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; }
+.report-empty .primary-button { width: auto; white-space: nowrap; }
 .page-intro { padding: 11px 0 2px; }
 .page-intro h1 { margin: 9px 0 5px; font: 700 29px "Segoe UI", sans-serif; letter-spacing: -1px; }
 .page-intro p { margin: 0; color: #9ca7ba; font-size: 12px; }
@@ -228,6 +236,9 @@ h1, h2, h3, p { margin-top: 0; }
   .chart-card { padding: 13px 10px 10px; }
   .form-section { padding: 12px 10px; }
   .form-settings-grid { grid-template-columns: 1fr; }
+  .report-metadata { grid-template-columns: 1fr; }
+  .report-empty { grid-template-columns: auto 1fr; }
+  .report-empty .primary-button { grid-column: 1 / -1; width: 100%; }
   .form-section-heading { align-items: flex-start; flex-direction: column; }
   .form-actions { align-items: stretch; flex-direction: column; }
   .form-actions .primary-button { width: 100%; }
