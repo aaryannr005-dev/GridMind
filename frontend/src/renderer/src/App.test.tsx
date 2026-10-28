@@ -88,6 +88,7 @@ const report = {
 const runHourlyScenario = vi.fn();
 
 beforeEach(() => {
+  window.localStorage.clear();
   runHourlyScenario.mockReset();
   runHourlyScenario.mockResolvedValue(report);
   Object.defineProperty(window, "gridmindDesktop", {
@@ -137,6 +138,30 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reports" }));
     fireEvent.click(screen.getByRole("button", { name: "Open Simulation Lab" }));
     expect(screen.getByRole("heading", { name: "Hourly energy profile" })).toBeInTheDocument();
+  });
+
+  it("persists Overview section preferences and leaves the full Reports view intact", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Energy and battery charts/ }));
+
+    expect(window.localStorage.getItem("gridmind.dashboard-preferences.v1")).toContain('"showCharts":false');
+    expect(screen.getByText("Preferences saved on this device.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Overview" }));
+    expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    expect(screen.getByRole("heading", { name: "Energy and battery profile" })).toBeInTheDocument();
+  });
+
+  it("loads saved Overview preferences when the app starts", async () => {
+    window.localStorage.setItem("gridmind.dashboard-preferences.v1", JSON.stringify({ showMetrics: true, showCharts: false, showComparison: true, showAssumptions: true }));
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    expect(await screen.findByText("+0.65 MYR")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
   });
 
   it("shows the editable 24-hour Simulation Lab", () => {

@@ -5,7 +5,7 @@ export const navigationItems: NavigationItem[] = [
   { id: "simulation", label: "Simulation lab", eyebrow: "MODEL", description: "Configure a scenario and inspect validated results." },
   { id: "reports", label: "Reports", eyebrow: "ANALYSIS", description: "Review reproducible reports from completed runs." },
   { id: "data", label: "Data sources", eyebrow: "REFERENCE", description: "Review source provenance and licensing notes." },
-  { id: "settings", label: "Preferences", eyebrow: "APP", description: "Desktop preferences will be available in a later stage." },
+  { id: "settings", label: "Preferences", eyebrow: "APP", description: "Customize which results appear on the Overview." },
 ];
 
 export function getNavigationItem(id: PageId): NavigationItem {

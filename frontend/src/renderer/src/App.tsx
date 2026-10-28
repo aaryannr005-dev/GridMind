@@ -9,6 +9,8 @@ import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../../sha
 import { SimulationLabPage } from "./pages/SimulationLabPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario-form";
+import { DEFAULT_DASHBOARD_PREFERENCES, loadDashboardPreferences, saveDashboardPreferences, type DashboardPreferences } from "./dashboard-preferences";
+import { PreferencesPage } from "./pages/PreferencesPage";
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
@@ -17,6 +19,8 @@ export default function App() {
   const [scenarioValues, setScenarioValues] = useState<ScenarioFormValues>(createInitialScenarioValues);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dashboardPreferences, setDashboardPreferences] = useState<DashboardPreferences>(loadDashboardPreferences);
+  const [preferencesSaved, setPreferencesSaved] = useState(true);
   const page = getNavigationItem(activePage);
   const engineStatus = isRunning ? "ENGINE RUNNING" : report ? "ENGINE RESPONDED" : "ENGINE IDLE";
 
@@ -42,6 +46,15 @@ export default function App() {
     void runScenario(demoScenario, "synthetic");
   }
 
+  function updateDashboardPreferences(preferences: DashboardPreferences): void {
+    setDashboardPreferences(preferences);
+    setPreferencesSaved(saveDashboardPreferences(preferences));
+  }
+
+  function resetDashboardPreferences(): void {
+    updateDashboardPreferences({ ...DEFAULT_DASHBOARD_PREFERENCES });
+  }
+
   return (
     <div className="app-shell">
       <Sidebar activePage={activePage} onNavigate={setActivePage} />
@@ -52,7 +65,7 @@ export default function App() {
         </header>
         <div className="page-content">
           {activePage === "home"
-            ? <HomePage report={report} reportSource={reportSource} isRunning={isRunning} error={error} onRunDemo={runDemo} />
+            ? <HomePage report={report} reportSource={reportSource} isRunning={isRunning} error={error} onRunDemo={runDemo} dashboardPreferences={dashboardPreferences} />
             : activePage === "simulation"
               ? <SimulationLabPage
                 values={scenarioValues}
@@ -66,7 +79,9 @@ export default function App() {
               />
               : activePage === "reports"
                 ? <ReportsPage report={report} source={reportSource} onOpenSimulation={() => setActivePage("simulation")} />
-                : <PlaceholderPage page={page} />}
+                : activePage === "settings"
+                  ? <PreferencesPage preferences={dashboardPreferences} onChange={updateDashboardPreferences} onReset={resetDashboardPreferences} isSaved={preferencesSaved} />
+                  : <PlaceholderPage page={page} />}
           <footer className="app-footer"><span>GRIDMIND <b>•</b> LOCAL ENERGY SIMULATION</span><span>{report ? "SCENARIO LOADED · " + (reportSource === "custom" ? "USER INPUTS" : "SYNTHETIC EXAMPLE") : "NO SCENARIO LOADED"}</span></footer>
         </div>
       </main>
