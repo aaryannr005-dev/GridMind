@@ -10,6 +10,7 @@ const symbols: Record<PageId, string> = {
   home: "⌂",
   simulation: "◈",
   reports: "▤",
+  "energy-map": "⌖",
   data: "◎",
   settings: "⚙",
 };
