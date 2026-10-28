@@ -26,7 +26,7 @@ Streamlit is an optional third-party dependency under Apache License 2.0; it is 
 
 ## React/Electron desktop foundation
 
-The React + TypeScript + Electron desktop app has a local typed bridge to the existing Python engine. The UI does not yet provide scenario entry or display simulation results. See [`frontend/README.md`](frontend/README.md) for setup and the bridge contract.
+The React + TypeScript + Electron desktop app has a local typed bridge to the existing Python engine. Its dashboard can run a clearly labeled synthetic example and display interval charts and baseline-versus-optimizer metrics returned by that engine. It does not yet provide editable scenario inputs. See [`frontend/README.md`](frontend/README.md) for setup and the bridge contract.
 
 ## Quick start
 
