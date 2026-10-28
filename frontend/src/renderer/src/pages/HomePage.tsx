@@ -1,6 +1,7 @@
 import type { GridMindScenarioReport } from "../../../shared/protocol";
 import { ScenarioCharts } from "../components/ScenarioCharts";
 import { FeedbackState } from "../components/FeedbackState";
+import { DEFAULT_DASHBOARD_PREFERENCES, type DashboardPreferences } from "../dashboard-preferences";
 
 interface HomePageProps {
   report: GridMindScenarioReport | null;
@@ -8,6 +9,7 @@ interface HomePageProps {
   isRunning: boolean;
   error: string | null;
   onRunDemo: () => void;
+  dashboardPreferences: DashboardPreferences;
 }
 
 function formatNumber(value: number | null | undefined, digits = 2): string {
@@ -18,7 +20,7 @@ function signed(value: number, unit: string): string {
   return (value >= 0 ? "+" : "−") + formatNumber(Math.abs(value)) + " " + unit;
 }
 
-export function ScenarioResults({ report, source }: { report: GridMindScenarioReport; source: "synthetic" | "custom" }) {
+export function ScenarioResults({ report, source, preferences = DEFAULT_DASHBOARD_PREFERENCES }: { report: GridMindScenarioReport; source: "synthetic" | "custom"; preferences?: DashboardPreferences }) {
   const optimized = report.gridmind;
   const comparison = report.comparison;
   const cards = [
@@ -36,14 +38,14 @@ export function ScenarioResults({ report, source }: { report: GridMindScenarioRe
         + " Values below are estimates for this one-day scenario, not measured data or guaranteed savings."}
     </FeedbackState>
     <div className="result-meta"><span>{report.period_start.slice(0, 10)} · {report.interval_count} intervals · {report.interval_minutes}-minute intervals</span><span>MYT (UTC+08:00) · {report.currency}</span></div>
-    <div className="metric-grid" aria-label="Scenario comparison metrics">
+    {preferences.showMetrics && <div className="metric-grid" aria-label="Scenario comparison metrics">
       {cards.map((card) => <article className="metric-card" key={card.label}><span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}</small></article>)}
-    </div>
-    <section className="results-section">
+    </div>}
+    {preferences.showCharts && <section className="results-section">
       <div className="section-heading"><div><span className="eyebrow">REAL ENGINE OUTPUTS</span><h2>Energy and battery profile</h2></div><span className="subtle-label">{report.interval_count} INTERVALS</span></div>
       <ScenarioCharts baseline={report.baseline_intervals} optimized={report.gridmind_intervals} intervalMinutes={report.interval_minutes} />
-    </section>
-    <section className="results-section">
+    </section>}
+    {preferences.showComparison && <section className="results-section">
       <div className="section-heading"><div><span className="eyebrow">BASELINE VS GRIDMIND</span><h2>Detailed comparison</h2></div></div>
       <div className="table-scroll"><table className="comparison-table"><caption>Engine-calculated metrics; costs in {report.currency}, energy in kWh unless noted.</caption>
         <thead><tr><th scope="col">Metric</th><th scope="col">Baseline</th><th scope="col">GridMind</th><th scope="col">Difference</th></tr></thead>
@@ -57,12 +59,12 @@ export function ScenarioResults({ report, source }: { report: GridMindScenarioRe
         </tbody>
       </table></div>
       {comparison && <p className="comparison-note">Differences follow the engine report: cost and grid import are baseline minus GridMind; other differences are GridMind minus baseline. Positive values are not automatically better for every objective.</p>}
-    </section>
-    <details className="assumptions-panel"><summary>Assumptions and model limitations</summary><div className="assumption-columns"><div><h3>Assumptions</h3><ul>{report.assumptions.map((item) => <li key={item}>{item}</li>)}</ul></div><div><h3>Limitations</h3><ul>{report.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div></div><p>Scenario fingerprint: <code>{report.scenario_fingerprint}</code></p></details>
+    </section>}
+    {preferences.showAssumptions && <details className="assumptions-panel"><summary>Assumptions and model limitations</summary><div className="assumption-columns"><div><h3>Assumptions</h3><ul>{report.assumptions.map((item) => <li key={item}>{item}</li>)}</ul></div><div><h3>Limitations</h3><ul>{report.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div></div><p>Scenario fingerprint: <code>{report.scenario_fingerprint}</code></p></details>}
   </div>;
 }
 
-export function HomePage({ report, reportSource, isRunning, error, onRunDemo }: HomePageProps) {
+export function HomePage({ report, reportSource, isRunning, error, onRunDemo, dashboardPreferences }: HomePageProps) {
   return (
     <div className="page-stack">
       <section className="welcome-panel dashboard-welcome">
@@ -81,7 +83,7 @@ export function HomePage({ report, reportSource, isRunning, error, onRunDemo }: 
       {error && <FeedbackState kind="warning" title="Scenario could not be run">{error + " You can try again; no new results were shown."}</FeedbackState>}
       {isRunning && <FeedbackState kind="info" title="Running locally">The Python engine is calculating the baseline and GridMind comparison. This may take a few seconds.</FeedbackState>}
       {report && reportSource
-        ? <ScenarioResults report={report} source={reportSource} />
+        ? <ScenarioResults report={report} source={reportSource} preferences={dashboardPreferences} />
         : <section className="empty-dashboard"><span className="empty-icon">⌁</span><div><h2>No scenario results yet</h2><p>Run the synthetic example or enter a scenario in the Simulation Lab to see engine-generated charts and comparisons.</p></div></section>}
     </div>
   );
