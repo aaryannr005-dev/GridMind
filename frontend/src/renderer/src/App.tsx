@@ -7,6 +7,7 @@ import type { PageId } from "./types";
 import { demoScenario } from "./demo-scenario";
 import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../../shared/protocol";
 import { SimulationLabPage } from "./pages/SimulationLabPage";
+import { ReportsPage } from "./pages/ReportsPage";
 import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario-form";
 
 export default function App() {
@@ -63,7 +64,9 @@ export default function App() {
                 onRun={(payload) => { void runScenario(payload, "custom"); }}
                 onReset={() => setScenarioValues(createInitialScenarioValues())}
               />
-              : <PlaceholderPage page={page} />}
+              : activePage === "reports"
+                ? <ReportsPage report={report} source={reportSource} onOpenSimulation={() => setActivePage("simulation")} />
+                : <PlaceholderPage page={page} />}
           <footer className="app-footer"><span>GRIDMIND <b>•</b> LOCAL ENERGY SIMULATION</span><span>{report ? "SCENARIO LOADED · " + (reportSource === "custom" ? "USER INPUTS" : "SYNTHETIC EXAMPLE") : "NO SCENARIO LOADED"}</span></footer>
         </div>
       </main>

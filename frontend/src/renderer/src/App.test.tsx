@@ -117,6 +117,26 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reports" }));
     expect(screen.getByRole("button", { name: "Reports" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("heading", { name: "Reports" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No completed reports yet" })).toBeInTheDocument();
+  });
+
+  it("shows the latest completed report with provenance and engine results", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+
+    expect(screen.getByRole("heading", { name: "Scenario record" })).toBeInTheDocument();
+    expect(screen.getAllByText("sample-fingerprint")).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "Energy and battery profile" })).toBeInTheDocument();
+    expect(screen.getByText("Assumptions and model limitations")).toBeInTheDocument();
+  });
+
+  it("links the empty report page to the Simulation Lab", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Simulation Lab" }));
+    expect(screen.getByRole("heading", { name: "Hourly energy profile" })).toBeInTheDocument();
   });
 
   it("shows the editable 24-hour Simulation Lab", () => {
