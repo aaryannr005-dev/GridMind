@@ -33,6 +33,8 @@ def main() -> int:
         "--clean",
         "--onefile",
         "--console",
+        "--collect-all",
+        "tzdata",
         "--paths",
         str(ROOT / "src"),
         "--name",
