@@ -34,14 +34,13 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           >
             <span className="nav-symbol" aria-hidden="true">{symbols[item.id]}</span>
             <span>{item.label}</span>
-            {item.id === "simulation" && <span className="nav-dot" aria-label="Not connected" />}
           </button>
         ))}
       </nav>
       <div className="sidebar-bottom">
         <div className="local-status"><span className="status-dot" />LOCAL WORKSPACE</div>
         <p>Designed for reproducible energy scenarios.</p>
-        <div className="version">GRIDMIND · STAGE 1</div>
+        <div className="version">GRIDMIND · STAGE 4</div>
       </div>
     </aside>
   );

@@ -4,6 +4,7 @@ import { FeedbackState } from "../components/FeedbackState";
 
 interface HomePageProps {
   report: GridMindScenarioReport | null;
+  reportSource: "synthetic" | "custom" | null;
   isRunning: boolean;
   error: string | null;
   onRunDemo: () => void;
@@ -17,7 +18,7 @@ function signed(value: number, unit: string): string {
   return (value >= 0 ? "+" : "−") + formatNumber(Math.abs(value)) + " " + unit;
 }
 
-function ScenarioResults({ report }: { report: GridMindScenarioReport }) {
+export function ScenarioResults({ report, source }: { report: GridMindScenarioReport; source: "synthetic" | "custom" }) {
   const optimized = report.gridmind;
   const comparison = report.comparison;
   const cards = [
@@ -29,7 +30,10 @@ function ScenarioResults({ report }: { report: GridMindScenarioReport }) {
 
   return <div className="results-stack">
     <FeedbackState kind="info" title="Modeled scenario results">
-      Synthetic demonstration inputs were sent to the local Python engine. Values below are estimates for this one-day scenario, not measured data or guaranteed savings.
+      {(source === "synthetic"
+        ? "Synthetic demonstration inputs were sent to the local Python engine."
+        : "Your scenario inputs were sent to the local Python engine.")
+        + " Values below are estimates for this one-day scenario, not measured data or guaranteed savings."}
     </FeedbackState>
     <div className="result-meta"><span>{report.period_start.slice(0, 10)} · {report.interval_count} intervals · {report.interval_minutes}-minute intervals</span><span>MYT (UTC+08:00) · {report.currency}</span></div>
     <div className="metric-grid" aria-label="Scenario comparison metrics">
@@ -58,7 +62,7 @@ function ScenarioResults({ report }: { report: GridMindScenarioReport }) {
   </div>;
 }
 
-export function HomePage({ report, isRunning, error, onRunDemo }: HomePageProps) {
+export function HomePage({ report, reportSource, isRunning, error, onRunDemo }: HomePageProps) {
   return (
     <div className="page-stack">
       <section className="welcome-panel dashboard-welcome">
@@ -76,7 +80,9 @@ export function HomePage({ report, isRunning, error, onRunDemo }: HomePageProps)
       </section>
       {error && <FeedbackState kind="warning" title="Scenario could not be run">{error + " You can try again; no new results were shown."}</FeedbackState>}
       {isRunning && <FeedbackState kind="info" title="Running locally">The Python engine is calculating the baseline and GridMind comparison. This may take a few seconds.</FeedbackState>}
-      {report ? <ScenarioResults report={report} /> : <section className="empty-dashboard"><span className="empty-icon">⌁</span><div><h2>No scenario results yet</h2><p>Run the synthetic example to see charts and comparisons generated from the local Python engine.</p></div></section>}
+      {report && reportSource
+        ? <ScenarioResults report={report} source={reportSource} />
+        : <section className="empty-dashboard"><span className="empty-icon">⌁</span><div><h2>No scenario results yet</h2><p>Run the synthetic example or enter a scenario in the Simulation Lab to see engine-generated charts and comparisons.</p></div></section>}
     </div>
   );
 }
