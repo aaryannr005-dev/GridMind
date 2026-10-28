@@ -11,7 +11,7 @@ on:
       - "pyproject.toml"
       - ".github/workflows/windows-desktop.yml"
   push:
-    branches: [main]
+    branches: [main, "packaging/**"]
     paths:
       - "src/**"
       - "tests/**"
