@@ -2,6 +2,17 @@ name: Windows desktop installer
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish the built installer as a GitHub Release"
+        required: true
+        type: boolean
+        default: false
+      release_tag:
+        description: "Release tag to create (for example v0.1.0)"
+        required: false
+        type: string
+        default: "v0.1.0"
   pull_request:
     paths:
       - "src/**"
@@ -139,3 +150,40 @@ jobs:
           path: frontend/release/GridMind-Setup-*.exe
           if-no-files-found: error
           retention-days: 30
+
+  publish-release:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main' }}
+    needs: windows-installer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download installer artifact from this run
+        uses: actions/download-artifact@v7
+        with:
+          name: GridMind-Windows-Beta-${{ github.run_number }}
+          path: dist
+
+      - name: Verify installer artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist/GridMind-Setup-*.exe)
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "Expected exactly one GridMind installer .exe, found ${#files[@]}" >&2
+            exit 1
+          fi
+          sha256sum "${files[0]}"
+          mv "${files[0]}" dist/GridMind-Setup.exe
+
+      - name: Publish GitHub Release with installer
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          target_commitish: main
+          name: GridMind ${{ inputs.release_tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/GridMind-Setup.exe
