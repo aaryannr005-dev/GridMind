@@ -1,5 +1,14 @@
 # GridMind
 
+<p align="center">
+  <a href="https://github.com/aaryannr005-dev/GridMind/actions/workflows/windows-desktop.yml?query=branch%3Amain+is%3Asuccess">
+    <img alt="Download for Windows (.exe)" src="https://img.shields.io/badge/Download%20for-Windows%20(.exe)-218BFF?style=for-the-badge&logo=windows&logoColor=white">
+  </a>
+</p>
+
+**Windows beta:** Click the button above, open the latest successful **Windows desktop installer** run on `main`, then download its `GridMind-Windows-Beta-*` artifact from the **Artifacts** section. Extract the downloaded ZIP and run `GridMind-Setup-*.exe`. The artifact requires GitHub access to this repository and expires after 30 days. The installer is currently unsigned, and a successful CI build does not yet guarantee it has been verified on every Windows machine.
+
+
 GridMind is a Python energy simulation and decision-support project. It provides typed input models, deterministic energy simulation with battery constraints, a discrete dispatch optimizer, performance metrics, and structured reports. The input models validate demand, solar generation, tariffs, battery parameters, and aligned interval data. The simulation follows a self-consumption-first energy balance and reports interval flows and tariff costs/credits. Dispatch optimization minimizes modeled grid import costs minus export credits across the supplied horizon; it can consider grid charging, balances grid charging against solar export rates, curtails solar when export rates are negative, respects battery limits and a terminal state of charge, and uses a discrete state-of-charge resolution. It is approximate, with accuracy affected by `soc_step_kwh`; it does not optimize battery sizing, demand response, or multi-site energy sharing.
 
 ## Requirements
