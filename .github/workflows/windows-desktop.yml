@@ -176,6 +176,7 @@ jobs:
             exit 1
           fi
           sha256sum "${files[0]}"
+          mv "${files[0]}" dist/GridMind-Setup.exe
 
       - name: Publish GitHub Release with installer
         uses: softprops/action-gh-release@v2
@@ -185,4 +186,4 @@ jobs:
           name: GridMind ${{ inputs.release_tag }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: dist/GridMind-Setup-*.exe
+          files: dist/GridMind-Setup.exe
