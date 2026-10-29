@@ -1,7 +1,7 @@
 # GridMind
 
 <p align="center">
-  <a href="https://github.com/aaryannr005-dev/GridMind/actions/workflows/windows-desktop.yml?query=branch%3Amain+is%3Asuccess">
+  <a href="https://github.com/aaryannr005-dev/GridMind/actions/workflows/windows-desktop.yml?query=is%3Asuccess">
     <img alt="Download for Windows (.exe)" src="https://img.shields.io/badge/Download%20for-Windows%20(.exe)-218BFF?style=for-the-badge&logo=windows&logoColor=white">
   </a>
 </p>
