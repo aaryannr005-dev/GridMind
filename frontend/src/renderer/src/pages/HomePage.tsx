@@ -23,11 +23,12 @@ function signed(value: number, unit: string): string {
 export function ScenarioResults({ report, source, preferences = DEFAULT_DASHBOARD_PREFERENCES }: { report: GridMindScenarioReport; source: "synthetic" | "custom"; preferences?: DashboardPreferences }) {
   const optimized = report.gridmind;
   const comparison = report.comparison;
+  const signalOf = (value: number): "good" | "bad" | "neutral" => value > 0 ? "good" : value < 0 ? "bad" : "neutral";
   const cards = [
-    { label: "Baseline net cost", value: formatNumber(report.baseline.net_cost) + " " + report.currency, detail: "Modeled for this scenario" },
-    { label: "GridMind net cost", value: optimized ? formatNumber(optimized.net_cost) + " " + report.currency : "Not available", detail: "Approximate cost optimizer" },
-    { label: "Cost difference", value: comparison ? signed(comparison.cost_savings, report.currency) : "Not available", detail: "Baseline minus GridMind; positive means lower modeled cost" },
-    { label: "Grid import reduction", value: comparison ? signed(comparison.grid_import_reduction_kwh, "kWh") : "Not available", detail: "Baseline imports minus GridMind imports" },
+    { label: "Baseline net cost", value: formatNumber(report.baseline.net_cost) + " " + report.currency, detail: "Modeled for this scenario", signal: "neutral" as const },
+    { label: "GridMind net cost", value: optimized ? formatNumber(optimized.net_cost) + " " + report.currency : "Not available", detail: "Approximate cost optimizer", signal: "neutral" as const },
+    { label: "Cost difference", value: comparison ? signed(comparison.cost_savings, report.currency) : "Not available", detail: "Baseline minus GridMind; positive means lower modeled cost", signal: comparison ? signalOf(comparison.cost_savings) : "neutral" },
+    { label: "Grid import reduction", value: comparison ? signed(comparison.grid_import_reduction_kwh, "kWh") : "Not available", detail: "Baseline imports minus GridMind imports", signal: comparison ? signalOf(comparison.grid_import_reduction_kwh) : "neutral" },
   ];
 
   return <div className="results-stack">
@@ -39,7 +40,7 @@ export function ScenarioResults({ report, source, preferences = DEFAULT_DASHBOAR
     </FeedbackState>
     <div className="result-meta"><span>{report.period_start.slice(0, 10)} · {report.interval_count} intervals · {report.interval_minutes}-minute intervals</span><span>MYT (UTC+08:00) · {report.currency}</span></div>
     {preferences.showMetrics && <div className="metric-grid" aria-label="Scenario comparison metrics">
-      {cards.map((card) => <article className="metric-card" key={card.label}><span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}</small></article>)}
+      {cards.map((card) => <article className="metric-card" key={card.label} data-signal={card.signal}><span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}</small></article>)}
     </div>}
     {preferences.showCharts && <section className="results-section">
       <div className="section-heading"><div><span className="eyebrow">REAL ENGINE OUTPUTS</span><h2>Energy and battery profile</h2></div><span className="subtle-label">{report.interval_count} INTERVALS</span></div>

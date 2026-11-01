@@ -14,19 +14,27 @@ interface LineChartProps {
   hours: string[];
 }
 
+function tickDecimals(maximum: number): number {
+  if (maximum >= 100) return 0;
+  if (maximum >= 10) return 1;
+  return 2;
+}
+
 function LineChart({ title, description, unit, series, hours }: LineChartProps) {
   const width = 760;
   const height = 260;
-  const left = 48;
-  const right = 16;
+  const left = 52;
+  const right = 14;
   const top = 18;
   const bottom = 37;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
   const maximum = Math.max(1, ...series.flatMap((item) => item.values));
+  const decimals = tickDecimals(maximum);
   const x = (index: number) => left + (hours.length <= 1 ? 0 : index * plotWidth / (hours.length - 1));
   const y = (value: number) => top + plotHeight - value / maximum * plotHeight;
-  const format = (value: number) => `${value.toFixed(1)} ${unit}`;
+  const format = (value: number) => `${value.toFixed(2)} ${unit}`;
+  const tickLabel = (value: number) => value.toFixed(decimals);
 
   return (
     <section className="chart-card" aria-label={title}>
@@ -40,13 +48,17 @@ function LineChart({ title, description, unit, series, hours }: LineChartProps) 
           {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
             const value = maximum * fraction;
             const lineY = y(value);
-            return <g key={fraction}><line x1={left} x2={width - right} y1={lineY} y2={lineY} className="chart-gridline" /><text x={left - 8} y={lineY + 4} className="chart-axis-label" textAnchor="end">{value.toFixed(1)}</text></g>;
+            return <g key={fraction}>
+              <line x1={left} x2={width - right} y1={lineY} y2={lineY} className={fraction === 0 ? "chart-axisline" : "chart-gridline"} />
+              <text x={left - 8} y={lineY + 4} className="chart-axis-label" textAnchor="end">{tickLabel(value)}</text>
+            </g>;
           })}
+          <text x={left - 46} y={top - 4} className="chart-axis-title">{unit}</text>
           {series.map((item) => {
             const points = item.values.map((value, index) => `${x(index)},${y(value)}`).join(" ");
             return <g key={item.label}>
-              <polyline points={points} fill="none" stroke={item.color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-              {item.values.map((value, index) => <circle key={`${item.label}-${index}`} cx={x(index)} cy={y(value)} r="3" fill={item.color}>
+              <polyline points={points} fill="none" stroke={item.color} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
+              {item.values.map((value, index) => <circle key={`${item.label}-${index}`} cx={x(index)} cy={y(value)} r="2.7" fill={item.color}>
                 <title>{`${hours[index]} · ${item.label}: ${format(value)}`}</title>
               </circle>)}
             </g>;
@@ -68,8 +80,8 @@ function LineChart({ title, description, unit, series, hours }: LineChartProps) 
 
 function ImportComparison({ baseline, optimized }: { baseline: EngineInterval[]; optimized: EngineInterval[] | null }) {
   const values = [
-    { label: "Baseline", value: baseline.reduce((total, row) => total + row.grid_import_kwh, 0), color: "#8f80ff" },
-    ...(optimized ? [{ label: "GridMind", value: optimized.reduce((total, row) => total + row.grid_import_kwh, 0), color: "#56c9a0" }] : []),
+    { label: "Baseline", value: baseline.reduce((total, row) => total + row.grid_import_kwh, 0), color: "var(--chart-baseline)" },
+    ...(optimized ? [{ label: "GridMind", value: optimized.reduce((total, row) => total + row.grid_import_kwh, 0), color: "var(--chart-optimized)" }] : []),
   ];
   const maximum = Math.max(0, ...values.map((item) => item.value));
   const width = 760;
@@ -112,14 +124,14 @@ export function ScenarioCharts({ baseline, optimized, intervalMinutes }: Scenari
   const optimizedByTimestamp = new Map((optimized ?? []).map((row) => [row.timestamp, row]));
   const alignedOptimized = baseline.map((row) => optimizedByTimestamp.get(row.timestamp));
   const demandSolar = [
-    { label: "Demand", color: "#8f80ff", values: baseline.map((row) => row.demand_kwh) },
-    { label: "Solar generation", color: "#edbd68", values: baseline.map((row) => row.solar_generation_kwh) },
+    { label: "Demand", color: "var(--chart-demand)", values: baseline.map((row) => row.demand_kwh) },
+    { label: "Solar generation", color: "var(--chart-solar)", values: baseline.map((row) => row.solar_generation_kwh) },
   ];
   const batterySeries: ChartSeries[] = [
-    { label: "Baseline", color: "#8f80ff", values: baseline.map((row) => row.state_of_charge_percent) },
+    { label: "Baseline", color: "var(--chart-baseline)", values: baseline.map((row) => row.state_of_charge_percent) },
   ];
   if (optimized && alignedOptimized.every((row) => row !== undefined)) {
-    batterySeries.push({ label: "GridMind", color: "#56c9a0", values: alignedOptimized.map((row) => row!.state_of_charge_percent) });
+    batterySeries.push({ label: "GridMind", color: "var(--chart-optimized)", values: alignedOptimized.map((row) => row!.state_of_charge_percent) });
   }
 
   return <div className="charts-grid">
