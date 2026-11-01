@@ -20,6 +20,10 @@ GridMind is a local-first energy simulation and decision-support application. It
 - Run the narrowest relevant tests first, then the full available test suite and build where practical.
 - Report exact commands and outcomes. Never claim tests passed if they were skipped or could not run.
 - Add or update tests for behaviour changes. Do not weaken or delete tests merely to make CI pass.
+- Known validation commands are:
+  - Python package (repository root): `python -m pytest` (test config is in `pyproject.toml`).
+  - Frontend (from `frontend/`): `npm run typecheck`, `npm test` (Vitest), and `npm run build` (Electron production build).
+  - CI runs `.github/workflows/windows-desktop.yml`, which executes the Python tests, `python scripts/build_engine.py`, an engine JSON-lines smoke test, frontend typechecking, frontend tests, the Electron build, and Windows installer packaging (`npm run package:win`).
 
 ## Pull requests
 - Push changes to a descriptive feature branch and open a PR targeting `main`.
