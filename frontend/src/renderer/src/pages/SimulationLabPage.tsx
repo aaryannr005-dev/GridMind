@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../../../shared/protocol";
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
+import { SliderNumberField } from "../components/SliderNumberField";
 import {
   validateScenarioForm,
   type BatteryFormKey,
@@ -47,6 +48,23 @@ const batteryErrorTerms: Record<BatteryFormKey, string[]> = {
   initial_soc_kwh: ["battery initial soc", "starting battery charge"],
   min_soc_kwh: ["battery min soc", "minimum battery charge"],
   max_soc_kwh: ["battery max soc", "maximum battery charge"],
+};
+
+/**
+ * Slider ranges are convenience aids for pointer adjustments; the paired numeric
+ * entry accepts any exact value the engine accepts, so the slider never limits
+ * scenario expressiveness, and it stretches to follow values typed beyond its
+ * nominal bounds. Efficiency fields use a finer step than coarse energy fields.
+ */
+const batterySliderSpec: Record<BatteryFormKey, { max: number; step: number }> = {
+  capacity_kwh: { max: 20, step: 0.1 },
+  max_charge_power_kw: { max: 10, step: 0.1 },
+  max_discharge_power_kw: { max: 10, step: 0.1 },
+  charge_efficiency: { max: 1, step: 0.01 },
+  discharge_efficiency: { max: 1, step: 0.01 },
+  initial_soc_kwh: { max: 20, step: 0.1 },
+  min_soc_kwh: { max: 20, step: 0.1 },
+  max_soc_kwh: { max: 20, step: 0.1 },
 };
 
 export function SimulationLabPage({
@@ -114,8 +132,22 @@ export function SimulationLabPage({
       </section>
       <section className="form-section" aria-labelledby="battery-settings-title">
         <div className="form-section-heading"><div><span className="eyebrow">EQUIPMENT</span><h2 id="battery-settings-title">Battery settings</h2></div></div>
-        <div className="battery-form-grid">{batteryFields.map((field) => <label className="form-control" key={field.key}>{field.label}<span className="input-unit">{field.unit}</span><input type="number" inputMode="decimal" step="any" min={field.min} max={field.max} value={values.battery[field.key]} aria-invalid={validationErrors.some((issue) => batteryErrorTerms[field.key].some((term) => issue.toLowerCase().includes(term)))} onChange={(event) => updateBattery(field.key, event.target.value)} /></label>)}</div>
-        <p className="form-help">Efficiency is a fraction from greater than 0 through 1 (for example, 0.95 means 95%). Battery charge limits must be consistent with capacity and starting charge.</p>
+        <div className="battery-form-grid">{batteryFields.map((field) => {
+          const invalid = validationErrors.some((issue) => batteryErrorTerms[field.key].some((term) => issue.toLowerCase().includes(term)));
+          const spec = batterySliderSpec[field.key];
+          return <SliderNumberField
+            key={field.key}
+            label={field.label}
+            unit={field.unit}
+            value={values.battery[field.key]}
+            min={field.min}
+            max={spec.max}
+            step={spec.step}
+            invalid={invalid}
+            onValueChange={(value) => updateBattery(field.key, value)}
+          />;
+        })}</div>
+        <p className="form-help">Each battery setting pairs a slider for fine adjustments with a numeric field for exact typed values; either control updates the other. Efficiency is a fraction from greater than 0 through 1 (for example, 0.95 means 95%). Battery charge limits must be consistent with capacity and starting charge.</p>
       </section>
       <div className="form-actions"><button className="primary-button" type="submit" disabled={isRunning}>{isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running Python engine…</> : "Validate and run scenario"}</button><span>Inputs remain in memory for this app session only.</span></div>
     </form>

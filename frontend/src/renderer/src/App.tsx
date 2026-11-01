@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { HomePage } from "./pages/HomePage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
@@ -12,6 +12,8 @@ import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario
 import { DEFAULT_DASHBOARD_PREFERENCES, loadDashboardPreferences, saveDashboardPreferences, type DashboardPreferences } from "./dashboard-preferences";
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { EnergyMapPage } from "./pages/EnergyMapPage";
+import { ThemeToggle } from "./components/ThemeToggle";
+import { applyTheme, loadTheme, saveTheme, type ThemeName } from "./theme";
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
@@ -22,8 +24,20 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [dashboardPreferences, setDashboardPreferences] = useState<DashboardPreferences>(loadDashboardPreferences);
   const [preferencesSaved, setPreferencesSaved] = useState(true);
+  const [theme, setTheme] = useState<ThemeName>(loadTheme);
   const page = getNavigationItem(activePage);
   const engineStatus = isRunning ? "ENGINE RUNNING" : report ? "ENGINE RESPONDED" : "ENGINE IDLE";
+
+  useEffect(() => {
+    applyTheme(theme);
+    // Read once on mount; subsequent changes go through updateTheme.
+  }, []);
+
+  function updateTheme(next: ThemeName): void {
+    setTheme(next);
+    applyTheme(next);
+    saveTheme(next);
+  }
 
   async function runScenario(payload: RunHourlyScenarioPayload, source: "synthetic" | "custom"): Promise<void> {
     if (!window.gridmindDesktop) {
@@ -62,7 +76,7 @@ export default function App() {
       <main className="main-panel">
         <header className="topbar">
           <div className="breadcrumb"><span>GRIDMIND</span><span className="crumb-separator">/</span><strong>{page.label}</strong></div>
-          <div className="topbar-right"><span className="connection-indicator"><i className={isRunning ? "engine-running" : report ? "engine-ready" : ""} />{engineStatus}</span><div className="avatar" aria-label="Local workspace">GM</div></div>
+          <div className="topbar-right"><span className="connection-indicator"><i className={isRunning ? "engine-running" : report ? "engine-ready" : ""} />{engineStatus}</span><ThemeToggle theme={theme} onChange={updateTheme} /><div className="avatar" aria-label="Local workspace">GM</div></div>
         </header>
         <div className="page-content">
           {activePage === "home"
