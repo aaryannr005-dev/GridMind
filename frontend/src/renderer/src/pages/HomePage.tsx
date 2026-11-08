@@ -94,16 +94,18 @@ export function HomePage({
     <div className="page-stack">
       <section className="hero-band">
         <div className="hero-copy">
-          <div className="eyebrow"><span className="eyebrow-line" /> ENERGY CONTROL ROOM</div>
-          <h1>Make every energy<br /><span>decision explainable.</span></h1>
-          <div className="hero-tags"><span>LOCAL ENGINE</span><span>REPRODUCIBLE</span><span>MYT (UTC+08:00)</span></div>
+          <h1>Solar, battery and the grid for one modelled day</h1>
+          <p className="hero-lede">
+            The workspace sends your scenario to the local Python engine and steps through
+            24 hourly intervals in Malaysia time, comparing self-consumption dispatch with
+            cost-optimised dispatch interval by interval.
+          </p>
         </div>
         <div className="hero-run">
-          <span className="eyebrow">SYNTHETIC EXAMPLE</span>
-          <p>Runs a fixed, clearly synthetic 24-hour profile through the local Python engine. No results are prefilled or fabricated.</p>
           <button className="primary-button" type="button" onClick={onRunDemo} disabled={isRunning}>
             {isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running engine…</> : report ? "Run sample again" : "Run sample scenario"}
           </button>
+          <p>Runs the bundled synthetic example: a fixed demand profile with clear-sky solar. No results are prefilled or reused between runs.</p>
         </div>
       </section>
       {error && <FeedbackState kind="warning" title="Scenario could not be run">{error + " You can try again; no new results were shown."}</FeedbackState>}
