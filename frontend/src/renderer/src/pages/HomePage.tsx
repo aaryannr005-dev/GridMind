@@ -1,7 +1,12 @@
-import type { GridMindScenarioReport } from "../../../shared/protocol";
+import { type Dispatch, type SetStateAction } from "react";
+import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../../../shared/protocol";
 import { ScenarioCharts } from "../components/ScenarioCharts";
 import { FeedbackState } from "../components/FeedbackState";
+import { PowerFlowDiagram } from "../components/PowerFlowDiagram";
+import { ChartWorkspace } from "../components/ChartWorkspace";
+import { ControlRail, type StrategyId } from "../components/ControlRail";
 import { DEFAULT_DASHBOARD_PREFERENCES, type DashboardPreferences } from "../dashboard-preferences";
+import type { ScenarioFormValues } from "../scenario-form";
 
 interface HomePageProps {
   report: GridMindScenarioReport | null;
@@ -9,7 +14,18 @@ interface HomePageProps {
   isRunning: boolean;
   error: string | null;
   onRunDemo: () => void;
+  onRunScenario: (payload: RunHourlyScenarioPayload) => void;
   dashboardPreferences: DashboardPreferences;
+  scenarioValues: ScenarioFormValues;
+  onValuesChange: (values: ScenarioFormValues) => void;
+  playhead: number | null;
+  onPlayheadChange: Dispatch<SetStateAction<number | null>>;
+  playing: boolean;
+  onPlayingChange: Dispatch<SetStateAction<boolean>>;
+  speed: number;
+  onSpeedChange: Dispatch<SetStateAction<number>>;
+  strategy: StrategyId;
+  onStrategyChange: Dispatch<SetStateAction<StrategyId>>;
 }
 
 function formatNumber(value: number | null | undefined, digits = 2): string {
@@ -65,27 +81,76 @@ export function ScenarioResults({ report, source, preferences = DEFAULT_DASHBOAR
   </div>;
 }
 
-export function HomePage({ report, reportSource, isRunning, error, onRunDemo, dashboardPreferences }: HomePageProps) {
+export function HomePage({
+  report, reportSource, isRunning, error, onRunDemo, onRunScenario, dashboardPreferences,
+  scenarioValues, onValuesChange,
+  playhead, onPlayheadChange, playing, onPlayingChange, speed, onSpeedChange, strategy, onStrategyChange,
+}: HomePageProps) {
+  const strategyIntervals = strategy === "gridmind" && report?.gridmind_intervals
+    ? report.gridmind_intervals
+    : report?.baseline_intervals ?? [];
+
   return (
     <div className="page-stack">
-      <section className="welcome-panel dashboard-welcome">
-        <div className="welcome-copy">
-          <div className="eyebrow"><span className="eyebrow-line" /> ENERGY SYSTEMS WORKSPACE</div>
+      <section className="hero-band">
+        <div className="hero-copy">
+          <div className="eyebrow"><span className="eyebrow-line" /> ENERGY CONTROL ROOM</div>
           <h1>Make every energy<br /><span>decision explainable.</span></h1>
-          <p>Explore actual Python engine outputs with clear units, comparisons, and model assumptions.</p>
-          <div className="welcome-tags"><span>LOCAL-FIRST</span><span>REPRODUCIBLE</span><span>PYTHON ENGINE</span></div>
+          <div className="hero-tags"><span>LOCAL ENGINE</span><span>REPRODUCIBLE</span><span>MYT (UTC+08:00)</span></div>
         </div>
-        <div className="orbital-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit orbit-three" /><div className="orb-core">G<span>↗</span></div><div className="orbit-label label-top">ENERGY FLOW</div><div className="orbit-label label-bottom">MODEL · VALIDATE · COMPARE</div></div>
-      </section>
-      <section className="demo-panel" aria-labelledby="demo-title">
-        <div><span className="eyebrow">SYNTHETIC EXAMPLE</span><h2 id="demo-title">Try the dashboard with a sample day</h2><p>Runs a fixed, clearly synthetic 24-hour profile through the local Python engine. No results are prefilled or fabricated.</p></div>
-        <button className="primary-button" type="button" onClick={onRunDemo} disabled={isRunning}>{isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running engine…</> : report ? "Run sample again" : "Run sample scenario"}</button>
+        <div className="hero-run">
+          <span className="eyebrow">SYNTHETIC EXAMPLE</span>
+          <p>Runs a fixed, clearly synthetic 24-hour profile through the local Python engine. No results are prefilled or fabricated.</p>
+          <button className="primary-button" type="button" onClick={onRunDemo} disabled={isRunning}>
+            {isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running engine…</> : report ? "Run sample again" : "Run sample scenario"}
+          </button>
+        </div>
       </section>
       {error && <FeedbackState kind="warning" title="Scenario could not be run">{error + " You can try again; no new results were shown."}</FeedbackState>}
-      {isRunning && <FeedbackState kind="info" title="Running locally">The Python engine is calculating the baseline and GridMind comparison. This may take a few seconds.</FeedbackState>}
-      {report && reportSource
-        ? <ScenarioResults report={report} source={reportSource} preferences={dashboardPreferences} />
-        : <section className="empty-dashboard"><span className="empty-icon">⌁</span><div><h2>No scenario results yet</h2><p>Run the synthetic example or enter a scenario in the Simulation Lab to see engine-generated charts and comparisons.</p></div></section>}
+      {isRunning && !report && <FeedbackState kind="info" title="Running locally">The Python engine is calculating the baseline and GridMind comparison. This may take a few seconds.</FeedbackState>}
+      <div className="workspace">
+        <ControlRail
+          report={report}
+          strategy={strategy}
+          onStrategyChange={onStrategyChange}
+          playhead={playhead}
+          onPlayheadChange={onPlayheadChange}
+          playing={playing}
+          onPlayingChange={onPlayingChange}
+          speed={speed}
+          onSpeedChange={onSpeedChange}
+          values={scenarioValues}
+          onValuesChange={onValuesChange}
+          onRunScenario={onRunScenario}
+          isRunning={isRunning}
+        />
+        <div className="workspace-main">
+          <section className="flow-panel" aria-label="Power flow diagram">
+            <div className="flow-head">
+              <h2>Power flow</h2>
+              <span className="subtle-label">{report ? `${report.interval_count} ENGINE INTERVALS · ${report.currency}` : "AWAITING SCENARIO"}</span>
+            </div>
+            {report
+              ? <PowerFlowDiagram intervals={strategyIntervals} intervalMinutes={report.interval_minutes} playhead={playhead} playing={playing} />
+              : <p className="flow-placeholder">Run a scenario to populate the flow diagram with engine results.</p>}
+          </section>
+          {report && reportSource && dashboardPreferences.showCharts && (
+            <ChartWorkspace
+              intervals={strategyIntervals}
+              intervalMinutes={report.interval_minutes}
+              currency={report.currency}
+              importRates={scenarioValues.import_rate_per_kwh.map(Number)}
+              exportRates={scenarioValues.export_rate_per_kwh.map(Number)}
+            />
+          )}
+          {report && reportSource
+            ? <ScenarioResults report={report} source={reportSource} preferences={dashboardPreferences} />
+            : <section className="empty-dashboard"><span className="empty-icon">⌁</span><div><h2>No scenario results yet</h2><p>Run the synthetic example, apply a load profile or enter a scenario in the Simulation Lab to see engine-generated charts and comparisons.</p></div></section>}
+        </div>
+      </div>
     </div>
   );
 }
+
+// (Tariff rates that fail to parse simply don't plot; ChartWorkspace shows an
+// honest "not recorded" notice instead of a fabricated series.)
