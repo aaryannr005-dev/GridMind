@@ -37,6 +37,10 @@ permissions:
 jobs:
   windows-installer:
     runs-on: windows-latest
+    # Contents write is only exercised by the gated release step at the end of
+    # this job; every other step and event stays read-only.
+    permissions:
+      contents: write
     steps:
       - name: Check out source
         uses: actions/checkout@v5
@@ -133,57 +137,28 @@ jobs:
         working-directory: frontend
         run: npm run package:win
 
-      - name: Verify installer and report artifact details
+      - name: Verify installer and prepare release asset
         shell: pwsh
         run: |
-          $installer = Get-Item "frontend/release/GridMind-Setup-*.exe"
-          if (-not $installer) { throw "NSIS installer was not produced" }
+          $installers = @(Get-ChildItem "frontend/release/GridMind-Setup-*.exe")
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)"
+          }
+          $installer = $installers[0]
           $version = (Get-Content frontend/package.json | ConvertFrom-Json).version
           Write-Output "Installer: $($installer.FullName)"
           Write-Output "Size bytes: $($installer.Length)"
           Write-Output "Version: $version"
+          $target = Join-Path $installer.DirectoryName "GridMind-Setup.exe"
+          Move-Item -LiteralPath $installer.FullName -Destination $target -Force
+          $hash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
+          Write-Output "SHA256: $hash"
 
-      # The installer is ~123 MB and the free-plan artifact quota is small, so we
-      # only keep it for the release job that downloads it by name. Every other
-      # run verifies the installer in place and publishes it as a Release asset
-      # (release assets do not consume Actions artifact storage).
-      - name: Upload unsigned installer artifact
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: GridMind-Windows-Beta-${{ github.run_number }}
-          path: frontend/release/GridMind-Setup-*.exe
-          if-no-files-found: error
-          retention-days: 7
-
-  publish-release:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main' }}
-    needs: windows-installer
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - name: Download installer artifact from this run
-        uses: actions/download-artifact@v7
-        with:
-          name: GridMind-Windows-Beta-${{ github.run_number }}
-          path: dist
-
-      - name: Verify installer artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          files=(dist/GridMind-Setup-*.exe)
-          if [ "${#files[@]}" -ne 1 ]; then
-            echo "Expected exactly one GridMind installer .exe, found ${#files[@]}" >&2
-            exit 1
-          fi
-          sha256sum "${files[0]}"
-          mv "${files[0]}" dist/GridMind-Setup.exe
-
-      - name: Publish GitHub Release with installer
+      # GitHub Actions artifact storage is a small, account-wide quota, while
+      # release assets have no such limit. Publishing straight from this job
+      # removes the artifact round-trip that used to break release builds.
+      - name: Publish installer as a GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main' }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.release_tag }}
@@ -191,4 +166,4 @@ jobs:
           name: GridMind ${{ inputs.release_tag }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: dist/GridMind-Setup.exe
+          files: frontend/release/GridMind-Setup.exe
