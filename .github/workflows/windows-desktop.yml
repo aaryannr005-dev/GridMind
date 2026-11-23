@@ -143,13 +143,18 @@ jobs:
           Write-Output "Size bytes: $($installer.Length)"
           Write-Output "Version: $version"
 
+      # The installer is ~123 MB and the free-plan artifact quota is small, so we
+      # only keep it for the release job that downloads it by name. Every other
+      # run verifies the installer in place and publishes it as a Release asset
+      # (release assets do not consume Actions artifact storage).
       - name: Upload unsigned installer artifact
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true }}
         uses: actions/upload-artifact@v7
         with:
           name: GridMind-Windows-Beta-${{ github.run_number }}
           path: frontend/release/GridMind-Setup-*.exe
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
   publish-release:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main' }}
