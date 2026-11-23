@@ -2,21 +2,20 @@ import type { ReactNode } from "react";
 import { navigationItems } from "../navigation";
 import type { PageId } from "../types";
 
-interface SidebarProps {
+interface TopNavTabsProps {
   activePage: PageId;
   onNavigate: (page: PageId) => void;
 }
 
 function NavIcon({ viewBox, children }: { viewBox: string; children: ReactNode }) {
   return (
-    <svg viewBox={viewBox} width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <svg viewBox={viewBox} width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       {children}
     </svg>
   );
 }
 
 const icons: Record<PageId, ReactNode> = {
-  // Overview: gauge dial
   home: (
     <NavIcon viewBox="0 0 24 24">
       <path d="M4 14.5a8 8 0 1 1 16 0" />
@@ -24,13 +23,11 @@ const icons: Record<PageId, ReactNode> = {
       <path d="M4 18.5h16" />
     </NavIcon>
   ),
-  // Simulation lab: waveform with node
   simulation: (
     <NavIcon viewBox="0 0 24 24">
       <path d="M2.5 12h3l2.5-6.5L13 18.5l2.5-6.5h6" />
     </NavIcon>
   ),
-  // Reports: document with lines
   reports: (
     <NavIcon viewBox="0 0 24 24">
       <path d="M6.5 2.5h8l4 4v15h-12z" />
@@ -38,14 +35,12 @@ const icons: Record<PageId, ReactNode> = {
       <path d="M9 12h6M9 15.5h6M9 8h2" />
     </NavIcon>
   ),
-  // Energy map: location pin
   "energy-map": (
     <NavIcon viewBox="0 0 24 24">
       <path d="M12 21s6.5-6.2 6.5-11A6.5 6.5 0 0 0 5.5 10c0 4.8 6.5 11 6.5 11Z" />
       <circle cx="12" cy="9.6" r="2.4" />
     </NavIcon>
   ),
-  // Data sources: database
   data: (
     <NavIcon viewBox="0 0 24 24">
       <ellipse cx="12" cy="5.5" rx="7" ry="2.8" />
@@ -53,7 +48,6 @@ const icons: Record<PageId, ReactNode> = {
       <path d="M5 12.5v6c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8v-6" />
     </NavIcon>
   ),
-  // Preferences: sliders
   settings: (
     <NavIcon viewBox="0 0 24 24">
       <path d="M4 7.5h11M18.5 7.5H20M4 16.5h3M10.5 16.5H20" />
@@ -63,20 +57,26 @@ const icons: Record<PageId, ReactNode> = {
   ),
 };
 
-export function Sidebar({ activePage, onNavigate }: SidebarProps) {
+/**
+ * Compact topbar workspace navigation. Replaces the old sidebar; keeps the
+ * same accessible button semantics (name + `aria-current="page"`).
+ */
+export function TopNavTabs({ activePage, onNavigate }: TopNavTabsProps) {
   return (
-    <aside className="sidebar">
-      <div className="brand">
+    <header className="topbar">
+      <div className="brand brand-compact">
         <div className="brand-mark" aria-hidden="true">G</div>
-        <div><strong>gridmind</strong><span>ENERGY ANALYSIS</span></div>
+        <div className="brand-copy">
+          <strong>gridmind</strong>
+          <span>ENERGY ANALYSIS</span>
+        </div>
       </div>
-      <div className="nav-caption">WORKSPACE</div>
-      <nav aria-label="Main navigation" className="nav-list">
+      <nav aria-label="Main navigation" className="topnav">
         {navigationItems.map((item) => (
           <button
             key={item.id}
             type="button"
-            className={`nav-item ${activePage === item.id ? "active" : ""}`}
+            className={`topnav-tab${activePage === item.id ? " active" : ""}`}
             aria-label={item.label}
             aria-current={activePage === item.id ? "page" : undefined}
             onClick={() => onNavigate(item.id)}
@@ -86,11 +86,6 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           </button>
         ))}
       </nav>
-      <div className="sidebar-bottom">
-        <div className="local-status"><span className="status-dot" />LOCAL WORKSPACE</div>
-        <p>Reproducible energy scenarios, computed entirely on this device.</p>
-        <div className="version">GRIDMIND · STAGE 4</div>
-      </div>
-    </aside>
+    </header>
   );
 }

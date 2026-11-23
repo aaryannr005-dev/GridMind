@@ -1,17 +1,19 @@
 import type { EngineInterval } from "../../../shared/protocol";
 
-interface ChartSeries {
+export interface ChartSeries {
   label: string;
   color: string;
   values: number[];
 }
 
-interface LineChartProps {
+export interface LineChartProps {
   title: string;
   description: string;
   unit: string;
   series: ChartSeries[];
   hours: string[];
+  /** Data can be negative (e.g. signed battery/grid power); draws a zero line. */
+  signed?: boolean;
 }
 
 function tickDecimals(maximum: number): number {
@@ -20,7 +22,7 @@ function tickDecimals(maximum: number): number {
   return 2;
 }
 
-function LineChart({ title, description, unit, series, hours }: LineChartProps) {
+export function LineChart({ title, description, unit, series, hours, signed = false }: LineChartProps) {
   const width = 760;
   const height = 260;
   const left = 52;
@@ -29,10 +31,16 @@ function LineChart({ title, description, unit, series, hours }: LineChartProps) 
   const bottom = 37;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const maximum = Math.max(1, ...series.flatMap((item) => item.values));
-  const decimals = tickDecimals(maximum);
+  const allValues = series.flatMap((item) => item.values);
+  const magnitude = Math.max(1, ...allValues.map((value) => Math.abs(value)));
+  const dataMax = Math.max(...allValues, 0);
+  const dataMin = signed ? Math.min(...allValues, 0) : 0;
+  const maximum = signed ? Math.max(dataMax, magnitude * 0.1) : dataMax;
+  const minimum = dataMin;
+  const range = Math.max(maximum - minimum, 1e-9);
+  const decimals = tickDecimals(Math.max(Math.abs(minimum), Math.abs(maximum)));
   const x = (index: number) => left + (hours.length <= 1 ? 0 : index * plotWidth / (hours.length - 1));
-  const y = (value: number) => top + plotHeight - value / maximum * plotHeight;
+  const y = (value: number) => top + plotHeight - (value - minimum) / range * plotHeight;
   const format = (value: number) => `${value.toFixed(2)} ${unit}`;
   const tickLabel = (value: number) => value.toFixed(decimals);
 
@@ -46,13 +54,16 @@ function LineChart({ title, description, unit, series, hours }: LineChartProps) 
       <div className="chart-plot">
         <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${description}`}>
           {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
-            const value = maximum * fraction;
+            const value = minimum + range * fraction;
             const lineY = y(value);
             return <g key={fraction}>
               <line x1={left} x2={width - right} y1={lineY} y2={lineY} className={fraction === 0 ? "chart-axisline" : "chart-gridline"} />
               <text x={left - 8} y={lineY + 4} className="chart-axis-label" textAnchor="end">{tickLabel(value)}</text>
             </g>;
           })}
+          {minimum < 0 && maximum > 0 && (
+            <line x1={left} x2={width - right} y1={y(0)} y2={y(0)} className="chart-zero-line" />
+          )}
           <text x={left - 46} y={top - 4} className="chart-axis-title">{unit}</text>
           {series.map((item) => {
             const points = item.values.map((value, index) => `${x(index)},${y(value)}`).join(" ");
@@ -78,7 +89,7 @@ function LineChart({ title, description, unit, series, hours }: LineChartProps) 
   );
 }
 
-function ImportComparison({ baseline, optimized }: { baseline: EngineInterval[]; optimized: EngineInterval[] | null }) {
+export function ImportComparison({ baseline, optimized }: { baseline: EngineInterval[]; optimized: EngineInterval[] | null }) {
   const values = [
     { label: "Baseline", value: baseline.reduce((total, row) => total + row.grid_import_kwh, 0), color: "var(--chart-baseline)" },
     ...(optimized ? [{ label: "GridMind", value: optimized.reduce((total, row) => total + row.grid_import_kwh, 0), color: "var(--chart-optimized)" }] : []),
@@ -119,8 +130,12 @@ function formatHour(row: EngineInterval, index: number, intervalMinutes: number)
   return match ? `${match[1]}:${match[2]}` : `${index.toString().padStart(2, "0")}:00`;
 }
 
+export function formatHourLabels(intervals: EngineInterval[], intervalMinutes: number): string[] {
+  return intervals.map((row, index) => formatHour(row, index, intervalMinutes));
+}
+
 export function ScenarioCharts({ baseline, optimized, intervalMinutes }: ScenarioChartsProps) {
-  const hours = baseline.map((row, index) => formatHour(row, index, intervalMinutes));
+  const hours = formatHourLabels(baseline, intervalMinutes);
   const optimizedByTimestamp = new Map((optimized ?? []).map((row) => [row.timestamp, row]));
   const alignedOptimized = baseline.map((row) => optimizedByTimestamp.get(row.timestamp));
   const demandSolar = [

@@ -106,7 +106,7 @@ describe("GridMind desktop shell", () => {
   it("shows an honest empty dashboard before a scenario runs", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: /make every energy decision explainable/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /solar, battery and the grid for one modelled day/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
   });
