@@ -89,6 +89,7 @@ const runHourlyScenario = vi.fn();
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.localStorage.setItem("gridmind.profile.name.v1", "Test User");
   runHourlyScenario.mockReset();
   runHourlyScenario.mockResolvedValue(report);
   Object.defineProperty(window, "gridmindDesktop", {
@@ -100,6 +101,31 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   Reflect.deleteProperty(window, "gridmindDesktop");
+});
+
+describe("GridMind first-run onboarding", () => {
+  it("asks for a name on first launch and saves it locally before opening the dashboard", () => {
+    window.localStorage.removeItem("gridmind.profile.name.v1");
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "A clearer view of your energy." })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Your name" }), { target: { value: "  Alex   Tan  " } });
+    fireEvent.click(screen.getByRole("button", { name: /Continue to GridMind/ }));
+
+    expect(window.localStorage.getItem("gridmind.profile.name.v1")).toBe("Alex Tan");
+    expect(screen.getByRole("heading", { name: "Welcome back, Alex Tan. Here's your energy overview." })).toBeInTheDocument();
+  });
+
+  it("allows the display name to be edited from Settings", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Display name" }), { target: { value: "Ari" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save name" }));
+
+    expect(window.localStorage.getItem("gridmind.profile.name.v1")).toBe("Ari");
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    expect(screen.getByRole("heading", { name: "Welcome back, Ari. Here's your energy overview." })).toBeInTheDocument();
+  });
 });
 
 describe("GridMind desktop shell", () => {
