@@ -523,3 +523,34 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
     outline: 2px solid Highlight;
   }
 }
+
+/* ---- Phase 3B onboarding and supporting pages ----------------------- */
+.welcome-screen { display: grid; min-height: 100vh; place-items: center; padding: 32px 20px; background: radial-gradient(ellipse at 50% 0%, var(--bg-accent), var(--bg) 62%); }
+.welcome-card { width: min(100%, 520px); padding: clamp(28px, 5vw, 48px); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--panel); box-shadow: var(--shadow-raised); }
+.welcome-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 42px; color: var(--text-strong); font: 600 11px var(--mono); letter-spacing: 1.2px; }
+.welcome-brand .brand-mark { width: 34px; height: 34px; flex-basis: 34px; font-size: 16px; }
+.welcome-card > .eyebrow { display: block; margin-bottom: 10px; color: var(--accent-strong); }
+.welcome-card h1 { max-width: 390px; margin: 0 0 12px; color: var(--text-strong); font: 600 clamp(28px, 5vw, 38px)/1.12 var(--font-display); letter-spacing: -1px; }
+.welcome-lede { margin: 0 0 28px; color: var(--muted); font-size: 14px; }
+.welcome-form { display: grid; gap: 10px; }
+.welcome-form label, .profile-edit-form label { color: var(--text-strong); font-size: 12px; font-weight: 600; }
+.welcome-form input, .profile-edit-row input { width: 100%; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-m); color: var(--text); background: var(--panel-solid); font: inherit; }
+.welcome-form input:focus, .profile-edit-row input:focus { border-color: var(--accent); outline: var(--ring); outline-offset: 1px; }
+.welcome-form .primary-button { min-height: 42px; justify-self: start; margin-top: 8px; }
+.welcome-error { margin: 0; color: var(--danger); font-size: 12px; }
+.welcome-privacy { margin: 24px 0 0; color: var(--faint); font-size: 11px; line-height: 1.5; }
+.profile-edit-form { display: grid; gap: 9px; max-width: 520px; }
+.profile-edit-row { display: flex; align-items: center; gap: 10px; }
+.profile-edit-row .secondary-button { flex: 0 0 auto; min-height: 40px; }
+.profile-edit-form .preference-save-status { margin: 0; }
+.about-section h2 { margin: 8px 0 10px; color: var(--text-strong); font-size: 19px; }
+.about-section > p { max-width: 760px; color: var(--muted); }
+.about-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+.about-facts > div { display: grid; align-content: start; gap: 7px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--panel-soft); }
+.about-facts strong { color: var(--text-strong); font-size: 12px; }
+.about-facts span { color: var(--muted); font-size: 11px; line-height: 1.55; }
+@media (max-width: 760px) {
+  .about-facts { grid-template-columns: 1fr; }
+  .profile-edit-row { align-items: stretch; flex-direction: column; }
+  .profile-edit-row .secondary-button { align-self: flex-start; }
+}
