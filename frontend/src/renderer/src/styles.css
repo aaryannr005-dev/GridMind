@@ -129,6 +129,24 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .app-shell { min-height: 100vh; display: flex; background: var(--bg); }
 .main-panel { width: 100%; min-height: 100vh; }
 
+/* Shared elevation keeps panels distinct without turning the interface into
+   a stack of floating dashboard tiles. */
+.hero-band,
+.rail,
+.flow-panel,
+.chart-workspace,
+.demo-panel,
+.metric-card,
+.chart-card,
+.form-section,
+.report-metadata,
+.assumptions-panel,
+.energy-map-viewer,
+.preference-option,
+.empty-dashboard {
+  box-shadow: var(--shadow);
+}
+
 /* ---- Topbar and workspace nav --------------------------------------- */
 .topbar { position: sticky; top: 0; z-index: 3; display: flex; height: 52px; align-items: center; gap: 18px; padding: 0 18px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .brand { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
