@@ -1,0 +1,41 @@
+name: GridMind browser UI preview
+
+on:
+  push:
+    branches:
+      - feat/phase3-ui-ux-transformation
+    paths:
+      - "frontend/**"
+      - ".github/workflows/ui-browser-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-preview:
+    name: Build standalone browser preview
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build standalone HTML preview
+        run: npm run build:preview
+      - name: Upload preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: GridMind-UI-Preview
+          path: frontend/preview-dist/GridMind-UI-Preview.html
+          if-no-files-found: error
+          retention-days: 7
