@@ -140,9 +140,9 @@ describe("GridMind desktop shell", () => {
   it("marks the selected page in the accessible navigation", () => {
     render(<App />);
 
-    expect(screen.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
-    expect(screen.getByRole("button", { name: "Reports" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+    expect(screen.getByRole("button", { name: "Analytics" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("heading", { name: "Reports" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No completed reports yet" })).toBeInTheDocument();
   });
@@ -167,7 +167,7 @@ describe("GridMind desktop shell", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
     await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
 
     expect(screen.getByRole("heading", { name: "Scenario record" })).toBeInTheDocument();
     expect(screen.getAllByText("sample-fingerprint")).toHaveLength(2);
@@ -177,7 +177,7 @@ describe("GridMind desktop shell", () => {
 
   it("links the empty report page to the Simulation Lab", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
     fireEvent.click(screen.getByRole("button", { name: "Open Simulation Lab" }));
     expect(screen.getByRole("heading", { name: "Hourly energy profile" })).toBeInTheDocument();
   });
@@ -186,14 +186,14 @@ describe("GridMind desktop shell", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
     await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Energy and battery charts/ }));
 
     expect(window.localStorage.getItem("gridmind.dashboard-preferences.v1")).toContain('"showCharts":false');
     expect(screen.getByText("Preferences saved on this device.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
     expect(screen.getByRole("heading", { name: "Energy and battery profile" })).toBeInTheDocument();
   });
 
@@ -209,7 +209,7 @@ describe("GridMind desktop shell", () => {
   it("shows the editable 24-hour Simulation Lab", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     expect(screen.getByRole("heading", { name: "Hourly energy profile" })).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" })).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Export credit at 23:00 MYT" })).toBeInTheDocument();
@@ -219,8 +219,8 @@ describe("GridMind desktop shell", () => {
   it("shows the idle engine state across navigation", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Data sources" }));
-    expect(screen.getByText("ENGINE IDLE")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Data & Maps" }));
+    expect(screen.getByRole("heading", { name: "Energy map" })).toBeInTheDocument();
     expect(screen.getByText("NO SCENARIO LOADED")).toBeInTheDocument();
   });
 
@@ -253,7 +253,7 @@ describe("GridMind desktop shell", () => {
 
   it("validates edited input and displays local engine results for a custom scenario", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "2.75" } });
     fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "-0.1" } });
     fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
@@ -270,7 +270,7 @@ describe("GridMind desktop shell", () => {
 
   it("blocks invalid custom inputs before calling the engine", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
 
@@ -348,7 +348,7 @@ describe("GridMind desktop shell", () => {
 
   it("shows battery state of health at 100% and updates usable capacity in the Simulation Lab", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
 
     const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
     expect(soh).toHaveValue(1);
@@ -360,7 +360,7 @@ describe("GridMind desktop shell", () => {
 
   it("rejects invalid SoH and maximum charge combinations in the Simulation Lab", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
 
     const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
     fireEvent.change(soh, { target: { value: "0.5" } });
@@ -379,7 +379,7 @@ describe("GridMind desktop shell", () => {
 
   it("sends a valid Simulation Lab SoH and reduced maximum charge to the engine", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
 
     fireEvent.change(screen.getByRole("spinbutton", { name: "Battery state of health" }), { target: { value: "0.5" } });
     fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum charge" }), { target: { value: "5" } });
