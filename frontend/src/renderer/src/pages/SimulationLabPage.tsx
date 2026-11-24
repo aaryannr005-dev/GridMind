@@ -100,6 +100,26 @@ export function SimulationLabPage({
     setValidationErrors([]);
   }
 
+  function updateStateOfHealth(value: string) {
+    onValuesChange({ ...values, battery_state_of_health: value });
+    setValidationErrors([]);
+  }
+
+  const nominalCapacity = Number(values.battery.capacity_kwh);
+  const stateOfHealth = Number(values.battery_state_of_health);
+  const validStateOfHealth = values.battery_state_of_health.trim() !== ""
+    && Number.isFinite(stateOfHealth) && stateOfHealth > 0 && stateOfHealth <= 1;
+  const usableCapacity = values.battery.capacity_kwh.trim() !== ""
+    && Number.isFinite(nominalCapacity) && nominalCapacity > 0 && validStateOfHealth
+    ? nominalCapacity * stateOfHealth
+    : null;
+  const sohInvalid = validationErrors.some((issue) => {
+    const text = issue.toLowerCase();
+    return text.includes("state of health") || text.includes("usable battery capacity");
+  });
+  const usableCapacityErrors = validationErrors.filter((issue) =>
+    issue.toLowerCase().includes("usable battery capacity"));
+
   const errorListId = "scenario-validation-errors";
 
   return <div className="page-stack simulation-lab">
@@ -146,8 +166,25 @@ export function SimulationLabPage({
             invalid={invalid}
             onValueChange={(value) => updateBattery(field.key, value)}
           />;
-        })}</div>
-        <p className="form-help">Each battery setting pairs a slider for fine adjustments with a numeric field for exact typed values; either control updates the other. Efficiency is a fraction from greater than 0 through 1 (for example, 0.95 means 95%). Battery charge limits must be consistent with capacity and starting charge.</p>
+        })}<SliderNumberField
+          label="Battery state of health"
+          unit="fraction"
+          value={values.battery_state_of_health}
+          min={0}
+          max={1}
+          step={0.01}
+          invalid={sohInvalid}
+          helpId="battery-soh-help"
+          onValueChange={updateStateOfHealth}
+        /></div>
+        <p className="form-help" id="battery-soh-help">
+          State of health is the fraction of nominal capacity the battery can currently hold. Usable capacity:{" "}
+          <strong>{usableCapacity !== null ? usableCapacity.toFixed(2) + " kWh" : "—"}</strong>
+          {usableCapacity !== null ? ` (${nominalCapacity} kWh nominal × ${(stateOfHealth * 100).toFixed(0)}% SoH).` : "."}{" "}
+          The default 1.0 means 100%. Calendar and cycle ageing are not modelled.
+        </p>
+        {usableCapacityErrors.map((issue) => <p key={issue} className="form-field-error">{issue}</p>)}
+        <p className="form-help">Each battery setting pairs a slider for fine adjustments with a numeric field for exact typed values; either control updates the other. Efficiency is a fraction from greater than 0 through 1 (for example, 0.95 means 95%). Battery charge limits must be consistent with usable capacity and starting charge.</p>
       </section>
       <div className="form-actions"><button className="primary-button" type="submit" disabled={isRunning}>{isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running Python engine…</> : "Validate and run scenario"}</button><span>Inputs remain in memory for this app session only.</span></div>
     </form>

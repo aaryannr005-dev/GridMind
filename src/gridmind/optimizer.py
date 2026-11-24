@@ -18,16 +18,19 @@ from .simulation import _validate_interval_spacing
 
 @dataclass(frozen=True, slots=True)
 class OptimizationConfig:
-    """Controls optimizer resolution and end-of-horizon state.
+    """Controls optimizer resolution, end-of-horizon state, and penalties.
 
     If terminal_soc_kwh is omitted, the optimizer must finish at the initial
     state of charge. Grid charging is available by default and is selected only
-    when it improves the modeled objective.
+    when it improves the modeled objective. ``degradation_cost_per_kwh`` adds an
+    optional penalty per kWh discharged to the dispatch objective; it is not a
+    measured or forecast replacement cost.
     """
 
     soc_step_kwh: float = 0.5
     terminal_soc_kwh: float | None = None
     allow_grid_charging: bool = True
+    degradation_cost_per_kwh: float = 0.0
 
     def __post_init__(self) -> None:
         if isinstance(self.soc_step_kwh, bool) or not isinstance(self.soc_step_kwh, (int, float)):
@@ -49,6 +52,14 @@ class OptimizationConfig:
                 raise ValueError("terminal_soc_kwh must be a nonnegative finite number")
         if not isinstance(self.allow_grid_charging, bool):
             raise ValueError("allow_grid_charging must be a boolean")
+        if isinstance(self.degradation_cost_per_kwh, bool) or not isinstance(self.degradation_cost_per_kwh, (int, float)):
+            raise ValueError("degradation_cost_per_kwh must be a nonnegative finite number")
+        try:
+            finite = math.isfinite(self.degradation_cost_per_kwh)
+        except OverflowError:
+            finite = False
+        if not finite or self.degradation_cost_per_kwh < 0:
+            raise ValueError("degradation_cost_per_kwh must be a nonnegative finite number")
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +81,7 @@ class OptimizedInterval:
     import_cost: float
     export_credit: float
     net_cost: float
+    degradation_cost: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,7 +105,12 @@ class OptimizationResult:
 
     @property
     def total_net_cost(self) -> float:
-        return self.total_cost
+        """Tariff import cost less export credit, excluding degradation penalty."""
+        return sum(interval.net_cost for interval in self.intervals)
+
+    @property
+    def total_degradation_cost(self) -> float:
+        return sum(interval.degradation_cost for interval in self.intervals)
 
 
 def _state_levels(minimum: float, maximum: float, initial: float, terminal: float, step: float) -> list[float]:
@@ -116,10 +133,26 @@ def _transition(
     export_rate: float,
     config: GridMindConfig,
     options: OptimizationConfig,
-) -> tuple[float, float, float, float, float, float, float, float] | None:
-    """Return transition energy/cost values, or None when physically invalid."""
+) -> tuple[float, float, float, float, float, float, float, float, float] | None:
+    """Return transition energy/cost values, or None when physically invalid.
+
+    The returned tuple is (charge, charge_from_solar, charge_from_grid,
+    discharge, grid_import, grid_export, solar_curtailment, tariff_net_cost,
+    degradation_cost). The optimizer objective adds the last two values.
+    """
     battery = config.battery
+    grid = config.grid
     duration_hours = config.interval_minutes / 60
+    import_limit_kwh = (
+        None
+        if grid.max_import_power_kw is None
+        else grid.max_import_power_kw * duration_hours
+    )
+    export_limit_kwh = (
+        None
+        if grid.max_export_power_kw is None
+        else grid.max_export_power_kw * duration_hours
+    )
     solar_to_load = min(demand, solar)
     demand_after_solar = demand - solar_to_load
     solar_surplus = solar - solar_to_load
@@ -135,13 +168,42 @@ def _transition(
             return None
         if not options.allow_grid_charging:
             charge_from_solar = charge_input
-        elif import_rate >= max(export_rate, 0.0):
+        elif import_rate < 0:
+            # A negative import price pays for grid charging, so prefer it.
+            charge_from_solar = 0.0
+        elif import_rate >= export_rate:
             charge_from_solar = min(charge_input, solar_surplus)
+        else:
+            # Exporting is worth more than importing, so leave exportable
+            # surplus for export. Solar that the export cap would otherwise
+            # curtail has no opportunity cost and is used for charging first.
+            exportable_surplus = solar_surplus
+            if export_limit_kwh is not None:
+                exportable_surplus = min(exportable_surplus, export_limit_kwh)
+            if export_rate <= 0:
+                exportable_surplus = 0.0
+            charge_from_solar = min(
+                charge_input, solar_surplus - exportable_surplus
+            )
         charge_from_grid = charge_input - charge_from_solar
         if not options.allow_grid_charging and charge_from_grid > 1e-9:
             return None
         grid_import = demand_after_solar + charge_from_grid
         remaining_surplus = max(0.0, solar_surplus - charge_from_solar)
+        if import_limit_kwh is not None and grid_import > import_limit_kwh + 1e-9:
+            # The import cap forces a different allocation: divert surplus
+            # solar from export/curtailment into charging so that grid import
+            # stays within the configured limit. Curtailed surplus is consumed
+            # first because it has no export opportunity cost.
+            shift = min(
+                grid_import - import_limit_kwh,
+                remaining_surplus,
+                charge_from_grid,
+            )
+            charge_from_solar += shift
+            charge_from_grid -= shift
+            grid_import -= shift
+            remaining_surplus -= shift
         grid_export = remaining_surplus if export_rate > 0 else 0.0
         solar_curtailment = remaining_surplus - grid_export
     elif next_soc < current_soc:
@@ -158,13 +220,20 @@ def _transition(
         grid_export = solar_surplus if export_rate > 0 else 0.0
         solar_curtailment = solar_surplus - grid_export
 
+    if export_limit_kwh is not None and grid_export > export_limit_kwh:
+        solar_curtailment += grid_export - export_limit_kwh
+        grid_export = export_limit_kwh
+    if import_limit_kwh is not None and grid_import > import_limit_kwh + 1e-9:
+        return None
+
     import_cost = grid_import * import_rate
     export_credit = grid_export * export_rate
     net_cost = import_cost - export_credit
+    degradation_cost = options.degradation_cost_per_kwh * discharge
     if not all(math.isfinite(value) for value in (
         charge_input, charge_from_solar, charge_from_grid, discharge,
         grid_import, grid_export, solar_curtailment, import_cost,
-        export_credit, net_cost,
+        export_credit, net_cost, degradation_cost,
     )):
         raise ValueError(
             "calculated dispatch flow or tariff cost exceeds the finite numeric range"
@@ -178,6 +247,7 @@ def _transition(
         grid_export,
         solar_curtailment,
         net_cost,
+        degradation_cost,
     )
 
 
@@ -190,11 +260,17 @@ def optimize_dispatch(
 
     The battery state is searched on a discrete grid. Solar serves load first;
     solar surplus may be charged or exported according to the import and export
-    prices; surplus is curtailed when its export price is negative. Grid charging
-    is selected when its price is below the value of exporting available solar.
-    Battery discharge serves load but is not exported. The default
-    terminal state equals the starting state to avoid consuming stored energy
-    outside the modeled horizon.
+    prices; surplus is curtailed when its export price is negative or above a
+    configured export cap. Surplus curtailed by the export cap remains available
+    for charging, so it is used before grid charging when exporting is otherwise
+    more valuable. Grid charging is selected when its price is below the value of
+    exporting available solar. Battery discharge serves load but is not exported.
+    Configured grid import caps divert surplus solar from export into charging
+    when needed to stay within the cap; transitions remain infeasible when
+    demand alone exceeds it. The default terminal state equals the starting
+    state to avoid consuming stored energy outside the modeled horizon.
+    ``OptimizationResult.total_cost`` is the tariff objective plus any configured
+    degradation penalty; ``total_net_cost`` excludes that penalty.
     """
     if not isinstance(config, GridMindConfig):
         raise ValueError("config must be a GridMindConfig")
@@ -227,7 +303,7 @@ def optimize_dispatch(
     costs = [math.inf] * state_count
     costs[start_index] = 0.0
     parent_layers: list[list[int]] = []
-    transition_layers: list[list[tuple[float, float, float, float, float, float, float, float] | None]] = []
+    transition_layers: list[list[tuple[float, float, float, float, float, float, float, float, float] | None]] = []
 
     for index, (demand_point, solar_point, import_point) in enumerate(
         zip(inputs.demand.points, inputs.solar.points, inputs.tariffs.import_rates)
@@ -239,7 +315,7 @@ def optimize_dispatch(
         )
         next_costs = [math.inf] * state_count
         parents = [-1] * state_count
-        actions: list[tuple[float, float, float, float, float, float, float, float] | None] = [None] * state_count
+        actions: list[tuple[float, float, float, float, float, float, float, float, float] | None] = [None] * state_count
 
         for current_index, current_soc in enumerate(states):
             current_cost = costs[current_index]
@@ -269,7 +345,7 @@ def optimize_dispatch(
                 )
                 if action is None:
                     continue
-                candidate_cost = current_cost + action[-1]
+                candidate_cost = current_cost + action[7] + action[8]
                 if not math.isfinite(candidate_cost):
                     raise ValueError("total dispatch cost exceeds the finite numeric range")
                 if candidate_cost < next_costs[next_index] - 1e-12:
@@ -282,9 +358,13 @@ def optimize_dispatch(
         transition_layers.append(actions)
 
     if not math.isfinite(costs[terminal_index]):
+        if config.grid.max_import_power_kw is not None or config.grid.max_export_power_kw is not None:
+            raise ValueError(
+                "no feasible dispatch reaches the requested terminal state within the configured grid limits"
+            )
         raise ValueError("no feasible dispatch reaches the requested terminal state")
 
-    chosen: list[tuple[int, tuple[float, float, float, float, float, float, float, float]]] = []
+    chosen: list[tuple[int, tuple[float, float, float, float, float, float, float, float, float]]] = []
     state_index = terminal_index
     for period in range(len(parent_layers) - 1, -1, -1):
         parent_index = parent_layers[period][state_index]
@@ -297,7 +377,10 @@ def optimize_dispatch(
 
     optimized: list[OptimizedInterval] = []
     for index, (end_state_index, action) in enumerate(chosen):
-        charge, charge_solar, charge_grid, discharge, grid_import, grid_export, solar_curtailment, net_cost = action
+        (
+            charge, charge_solar, charge_grid, discharge, grid_import,
+            grid_export, solar_curtailment, net_cost, degradation_cost,
+        ) = action
         import_cost = grid_import * inputs.tariffs.import_rates[index].value
         export_rate = (
             inputs.tariffs.export_rates[index].value
@@ -325,6 +408,7 @@ def optimize_dispatch(
                 import_cost=import_cost,
                 export_credit=export_credit,
                 net_cost=net_cost,
+                degradation_cost=degradation_cost,
             )
         )
 

@@ -5,6 +5,7 @@ import unittest
 from gridmind import (
     BatteryConfig,
     DemandSeries,
+    GridConfig,
     GridMindConfig,
     InputData,
     OptimizationConfig,
@@ -119,6 +120,49 @@ class MetricsTests(unittest.TestCase):
         invalid = replace(result, intervals=(changed, *result.intervals[1:]))
         with self.assertRaisesRegex(ValueError, "finite number"):
             calculate_metrics(invalid, config, inputs)
+
+
+class MetricsFidelityTests(unittest.TestCase):
+    def _degradation_scenario(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        inputs = InputData(
+            DemandSeries(points((0, 1))),
+            SolarSeries(points((0, 0))),
+            TariffSeries(points((0.1, 1.0)), points((0, 0))),
+        )
+        options = OptimizationConfig(soc_step_kwh=0.5, degradation_cost_per_kwh=0.2)
+        return config, inputs, optimize_dispatch(config, inputs, options)
+
+    def test_objective_includes_degradation_but_net_cost_does_not(self):
+        config, inputs, optimized = self._degradation_scenario()
+        metrics = calculate_metrics(optimized, config, inputs)
+
+        self.assertTrue(metrics.tariff_costs_valid)
+        self.assertAlmostEqual(metrics.net_cost, 0.1)
+        self.assertAlmostEqual(optimized.total_degradation_cost, 0.2)
+        self.assertAlmostEqual(optimized.total_cost, 0.3)
+
+    def test_objective_mismatch_fails_tariff_validation(self):
+        config, inputs, optimized = self._degradation_scenario()
+        tampered = replace(optimized, total_cost=0.1)
+        metrics = calculate_metrics(tampered, config, inputs)
+
+        self.assertFalse(metrics.tariff_costs_valid)
+
+    def test_export_curtailment_preserves_the_solar_balance(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0), grid=GridConfig(max_export_power_kw=0.5)
+        )
+        inputs = InputData(
+            DemandSeries(points((0,))),
+            SolarSeries(points((2,))),
+            TariffSeries(points((0.2,)), points((0.1,))),
+        )
+        metrics = calculate_metrics(simulate(config, inputs), config, inputs)
+
+        self.assertTrue(metrics.energy_balance_valid)
+        self.assertAlmostEqual(metrics.grid_export_kwh, 0.5)
+        self.assertAlmostEqual(metrics.solar_self_consumption_kwh, 0.0)
 
 
 if __name__ == "__main__":

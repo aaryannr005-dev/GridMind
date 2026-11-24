@@ -11,13 +11,16 @@ from .metrics import SimulationMetrics
 from .models import (
     BatteryConfig,
     DemandSeries,
+    GridConfig,
     GridMindConfig,
     InputData,
+    PvConfig,
     SolarSeries,
     TariffSeries,
     TimeSeriesPoint,
 )
 from .optimizer import OptimizationConfig, OptimizationResult, optimize_dispatch
+from .pv import apply_temperature_derating
 from .reporting import GridMindReport, generate_report
 from .simulation import SimulationResult, simulate
 
@@ -97,6 +100,20 @@ class ScenarioRun:
     report: GridMindReport
 
 
+def _sequence(name: str, values: Sequence[float]) -> tuple[float, ...]:
+    if isinstance(values, (str, bytes)):
+        raise ValueError(f"{name} must contain exactly {HOURLY_PERIODS} numeric values")
+    try:
+        items = tuple(values)
+    except TypeError as exc:
+        raise ValueError(f"{name} must contain exactly {HOURLY_PERIODS} numeric values") from exc
+    if len(items) != HOURLY_PERIODS:
+        raise ValueError(
+            f"{name} must contain exactly {HOURLY_PERIODS} values; received {len(items)}"
+        )
+    return items
+
+
 def build_hourly_scenario(
     demand_kwh: Sequence[float],
     solar_generation_kwh: Sequence[float],
@@ -106,18 +123,44 @@ def build_hourly_scenario(
     start_date: date,
     battery: BatteryConfig,
     currency: str = "MYR",
+    grid: GridConfig | None = None,
+    pv: PvConfig | None = None,
+    ambient_temperature_c: Sequence[float] | None = None,
+    solar_irradiance_w_m2: Sequence[float] | None = None,
 ) -> tuple[GridMindConfig, InputData]:
     """Build a validated 24-hour scenario using Malaysia Time (UTC+08:00).
 
     Each sequence contains one value per hourly interval. Energy inputs are
     kWh per interval; tariff inputs are currency per kWh. No values are
     defaulted, imputed, or converted silently.
+
+    When ``pv`` and both weather series are supplied, the solar series is
+    temperature-derated by a first-order NOCT model before the simulation, so
+    metrics and reports see the effective generation used by dispatch.
+    Supplying weather without a PV configuration, or a PV configuration without
+    both weather series, is rejected.
     """
 
     if type(start_date) is not date:
         raise ValueError("start_date must be a calendar date")
     if not isinstance(battery, BatteryConfig):
         raise ValueError("battery must be a BatteryConfig")
+    if grid is not None and not isinstance(grid, GridConfig):
+        raise ValueError("grid must be a GridConfig")
+    if pv is not None and not isinstance(pv, PvConfig):
+        raise ValueError("pv must be a PvConfig")
+    weather_supplied = (
+        ambient_temperature_c is not None or solar_irradiance_w_m2 is not None
+    )
+    if pv is None and weather_supplied:
+        raise ValueError("pv must be supplied to apply a weather series")
+    if pv is not None and (
+        ambient_temperature_c is None or solar_irradiance_w_m2 is None
+    ):
+        raise ValueError(
+            "ambient_temperature_c and solar_irradiance_w_m2 are required "
+            "when pv is supplied"
+        )
 
     sequences = (
         ("demand_kwh", demand_kwh),
@@ -125,27 +168,30 @@ def build_hourly_scenario(
         ("import_rate_per_kwh", import_rate_per_kwh),
         ("export_rate_per_kwh", export_rate_per_kwh),
     )
-    normalized: dict[str, tuple[float, ...]] = {}
-    for name, values in sequences:
-        if isinstance(values, (str, bytes)):
-            raise ValueError(f"{name} must contain exactly {HOURLY_PERIODS} numeric values")
-        try:
-            items = tuple(values)
-        except TypeError as exc:
-            raise ValueError(f"{name} must contain exactly {HOURLY_PERIODS} numeric values") from exc
-        if len(items) != HOURLY_PERIODS:
-            raise ValueError(f"{name} must contain exactly {HOURLY_PERIODS} values; received {len(items)}")
-        normalized[name] = items
+    normalized = {
+        name: _sequence(name, values) for name, values in sequences
+    }
+
+    solar_values = normalized["solar_generation_kwh"]
+    if pv is not None:
+        solar_values = apply_temperature_derating(
+            solar_values,
+            _sequence("ambient_temperature_c", ambient_temperature_c),
+            _sequence("solar_irradiance_w_m2", solar_irradiance_w_m2),
+            pv,
+        )
 
     start = datetime.combine(start_date, time.min, tzinfo=MALAYSIA_TIME)
     timestamps = tuple(start + timedelta(hours=index) for index in range(HOURLY_PERIODS))
     demand = DemandSeries(tuple(TimeSeriesPoint(ts, value) for ts, value in zip(timestamps, normalized["demand_kwh"])))
-    solar = SolarSeries(tuple(TimeSeriesPoint(ts, value) for ts, value in zip(timestamps, normalized["solar_generation_kwh"])))
+    solar = SolarSeries(tuple(TimeSeriesPoint(ts, value) for ts, value in zip(timestamps, solar_values)))
     tariffs = TariffSeries(
         import_rates=tuple(TimeSeriesPoint(ts, value) for ts, value in zip(timestamps, normalized["import_rate_per_kwh"])),
         export_rates=tuple(TimeSeriesPoint(ts, value) for ts, value in zip(timestamps, normalized["export_rate_per_kwh"])),
     )
-    config = GridMindConfig(battery=battery, interval_minutes=60, currency=currency)
+    config = GridMindConfig(
+        battery=battery, interval_minutes=60, currency=currency, grid=grid, pv=pv
+    )
     return config, InputData(demand=demand, solar=solar, tariffs=tariffs)
 
 
@@ -158,6 +204,11 @@ def run_hourly_scenario(
     start_date: date,
     battery: BatteryConfig,
     currency: str = "MYR",
+    grid: GridConfig | None = None,
+    pv: PvConfig | None = None,
+    ambient_temperature_c: Sequence[float] | None = None,
+    solar_irradiance_w_m2: Sequence[float] | None = None,
+    degradation_cost_per_kwh: float = 0.0,
 ) -> ScenarioRun:
     """Run baseline and cost optimizer on identical validated inputs."""
 
@@ -169,6 +220,10 @@ def run_hourly_scenario(
         start_date=start_date,
         battery=battery,
         currency=currency,
+        grid=grid,
+        pv=pv,
+        ambient_temperature_c=ambient_temperature_c,
+        solar_irradiance_w_m2=solar_irradiance_w_m2,
     )
     baseline = simulate(config, inputs)
     # Scale the discrete search to battery size and stay within the optimizer's
@@ -181,6 +236,7 @@ def run_hourly_scenario(
         OptimizationConfig(
             soc_step_kwh=soc_step,
             terminal_soc_kwh=baseline.intervals[-1].state_of_charge_kwh,
+            degradation_cost_per_kwh=degradation_cost_per_kwh,
         ),
     )
     report = generate_report(baseline, config, inputs, optimized)

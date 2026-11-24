@@ -36,6 +36,68 @@ describe("desktop engine protocol", () => {
     expect(isRunHourlyScenarioPayload(extraField)).toBe(false);
   });
 
+  it("accepts valid Phase 2 grid, PV, weather, SoH and degradation fields", () => {
+    const payload: RunHourlyScenarioPayload = {
+      ...validPayload(),
+      battery: { ...validPayload().battery, state_of_health: 0.8 },
+      grid: { max_import_power_kw: 5, max_export_power_kw: 0 },
+      pv: { reference_temperature_c: 25, noct_c: 45, temperature_coefficient_per_c: -0.004 },
+      ambient_temperature_c: Array(24).fill(30),
+      solar_irradiance_w_m2: Array(24).fill(800),
+      degradation_cost_per_kwh: 0.02,
+    };
+    expect(isRunHourlyScenarioPayload(payload)).toBe(true);
+    expect(isRunHourlyScenarioPayload({ ...validPayload(), grid: { max_import_power_kw: null } })).toBe(true);
+    expect(isRunHourlyScenarioPayload({
+      ...validPayload(),
+      battery: { ...validPayload().battery, state_of_health: 1 },
+    })).toBe(true);
+    expect(isRunHourlyScenarioPayload({ ...validPayload(), degradation_cost_per_kwh: 0 })).toBe(true);
+  });
+
+  it("rejects malformed grid, PV and weather payloads", () => {
+    const base = validPayload();
+    expect(isRunHourlyScenarioPayload({ ...base, grid: { max_import_power_kw: -1 } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, grid: { max_import_power_kw: Number.NaN } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, grid: { max_import_power_kw: "5" } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, grid: { max_import_power_kw: 5, tariff: 1 } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, pv: { noct_c: 45, unexpected: 1 } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, pv: { temperature_coefficient_per_c: 0.01 } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, pv: { noct_c: "45" } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, pv: { noct_c: 45 } })).toBe(false);
+    expect(isRunHourlyScenarioPayload({ ...base, ambient_temperature_c: Array(24).fill(30) })).toBe(false);
+    expect(isRunHourlyScenarioPayload({
+      ...base,
+      pv: {},
+      ambient_temperature_c: Array(23).fill(30),
+      solar_irradiance_w_m2: Array(24).fill(800),
+    })).toBe(false);
+    expect(isRunHourlyScenarioPayload({
+      ...base,
+      pv: {},
+      ambient_temperature_c: Array(24).fill(30),
+      solar_irradiance_w_m2: Array(24).fill(-1),
+    })).toBe(false);
+    expect(isRunHourlyScenarioPayload({
+      ...base,
+      pv: {},
+      ambient_temperature_c: Array(24).fill(30),
+      solar_irradiance_w_m2: [Number.NaN, ...Array(23).fill(800)],
+    })).toBe(false);
+  });
+
+  it("rejects invalid state of health and degradation costs", () => {
+    for (const state_of_health of [0, -0.1, 1.1, Number.NaN, "0.9"]) {
+      expect(isRunHourlyScenarioPayload({
+        ...validPayload(),
+        battery: { ...validPayload().battery, state_of_health },
+      })).toBe(false);
+    }
+    for (const degradation_cost_per_kwh of [-0.01, Number.NaN, "0.02"]) {
+      expect(isRunHourlyScenarioPayload({ ...validPayload(), degradation_cost_per_kwh })).toBe(false);
+    }
+  });
+
   it("decodes only structured engine success and failure messages", () => {
     expect(decodeEngineResponse({ id: "request-1", ok: true, result: validScenarioReport() })).toMatchObject({
       id: "request-1",

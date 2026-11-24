@@ -16,19 +16,26 @@ import sys
 from typing import BinaryIO, TextIO
 
 from .dashboard import run_hourly_scenario
-from .models import BatteryConfig
+from .models import BatteryConfig, GridConfig, PvConfig
 
 
 MAX_REQUEST_BYTES = 1_000_000
 _REQUEST_KEYS = {"id", "operation", "payload"}
-_PAYLOAD_KEYS = {
+_REQUIRED_PAYLOAD_KEYS = {
     "start_date",
     "demand_kwh",
     "solar_generation_kwh",
     "import_rate_per_kwh",
     "export_rate_per_kwh",
     "battery",
+}
+_PAYLOAD_KEYS = _REQUIRED_PAYLOAD_KEYS | {
     "currency",
+    "grid",
+    "pv",
+    "ambient_temperature_c",
+    "solar_irradiance_w_m2",
+    "degradation_cost_per_kwh",
 }
 _BATTERY_KEYS = {
     "capacity_kwh",
@@ -39,7 +46,11 @@ _BATTERY_KEYS = {
     "initial_soc_kwh",
     "min_soc_kwh",
     "max_soc_kwh",
+    "state_of_health",
 }
+_GRID_KEYS = {"max_import_power_kw", "max_export_power_kw"}
+_PV_KEYS = {"reference_temperature_c", "noct_c", "temperature_coefficient_per_c"}
+_WEATHER_KEYS = ("ambient_temperature_c", "solar_irradiance_w_m2")
 
 
 class BridgeError(Exception):
@@ -52,6 +63,10 @@ class BridgeError(Exception):
 
 def _is_object(value: object) -> bool:
     return isinstance(value, dict) and all(isinstance(key, str) for key in value)
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _validate_request(request: object) -> tuple[str, dict[str, object]]:
@@ -69,7 +84,7 @@ def _validate_request(request: object) -> tuple[str, dict[str, object]]:
     payload = request["payload"]
     if not _is_object(payload):
         raise BridgeError("INVALID_REQUEST", "Scenario payload must be a JSON object")
-    required = _PAYLOAD_KEYS - {"currency"}
+    required = _REQUIRED_PAYLOAD_KEYS
     if not required.issubset(payload) or set(payload) - _PAYLOAD_KEYS:
         raise BridgeError("INVALID_REQUEST", "Scenario payload has missing or unsupported fields")
 
@@ -90,6 +105,36 @@ def _validate_request(request: object) -> tuple[str, dict[str, object]]:
         raise BridgeError("INVALID_REQUEST", "Battery configuration contains unsupported fields")
     if "currency" in payload and not isinstance(payload["currency"], str):
         raise BridgeError("INVALID_SCENARIO", "currency must be a string")
+
+    grid = payload.get("grid")
+    if grid is not None:
+        if not _is_object(grid) or set(grid) - _GRID_KEYS:
+            raise BridgeError("INVALID_REQUEST", "grid contains unsupported fields")
+        if any(value is not None and not _is_number(value) for value in grid.values()):
+            raise BridgeError("INVALID_SCENARIO", "grid limits must be numbers or null")
+    pv = payload.get("pv")
+    if pv is not None:
+        if not _is_object(pv) or set(pv) - _PV_KEYS:
+            raise BridgeError("INVALID_REQUEST", "pv contains unsupported fields")
+        if not all(_is_number(value) for value in pv.values()):
+            raise BridgeError("INVALID_SCENARIO", "pv parameters must be numbers")
+    degradation = payload.get("degradation_cost_per_kwh")
+    if degradation is not None and not _is_number(degradation):
+        raise BridgeError(
+            "INVALID_SCENARIO", "degradation_cost_per_kwh must be a number"
+        )
+    for name in _WEATHER_KEYS:
+        if name in payload:
+            values = payload[name]
+            if (
+                not isinstance(values, list)
+                or len(values) != 24
+                or not all(_is_number(value) for value in values)
+            ):
+                raise BridgeError(
+                    "INVALID_SCENARIO",
+                    f"{name} must contain exactly 24 numeric values",
+                )
 
     for name in ("demand_kwh", "solar_generation_kwh", "import_rate_per_kwh", "export_rate_per_kwh"):
         values = payload[name]
@@ -127,6 +172,16 @@ def handle_request(request: object) -> dict[str, object]:
         request_id, payload = _validate_request(request)
         try:
             battery = BatteryConfig(**payload["battery"])
+            grid = (
+                GridConfig(**payload["grid"])
+                if payload.get("grid") is not None
+                else None
+            )
+            pv = (
+                PvConfig(**payload["pv"])
+                if payload.get("pv") is not None
+                else None
+            )
             run = run_hourly_scenario(
                 payload["demand_kwh"],
                 payload["solar_generation_kwh"],
@@ -135,6 +190,11 @@ def handle_request(request: object) -> dict[str, object]:
                 start_date=date.fromisoformat(payload["start_date"]),
                 battery=battery,
                 currency=payload.get("currency", "MYR"),
+                grid=grid,
+                pv=pv,
+                ambient_temperature_c=payload.get("ambient_temperature_c"),
+                solar_irradiance_w_m2=payload.get("solar_irradiance_w_m2"),
+                degradation_cost_per_kwh=payload.get("degradation_cost_per_kwh", 0.0),
             )
         except (TypeError, ValueError, OverflowError) as exc:
             raise BridgeError("INVALID_SCENARIO", str(exc)) from exc

@@ -6,9 +6,11 @@ import unittest
 from gridmind import (
     BatteryConfig,
     DemandSeries,
+    GridConfig,
     GridMindConfig,
     InputData,
     OptimizationConfig,
+    PvConfig,
     SolarSeries,
     TariffSeries,
     TimeSeriesPoint,
@@ -124,6 +126,62 @@ class ReportingTests(unittest.TestCase):
         wrong = scenario((2, 0), (0, 2))[1]
         with self.assertRaisesRegex(ValueError, "match the supplied scenario"):
             generate_report(simulate(config, inputs), config, wrong)
+
+
+class ReportingFidelityTests(unittest.TestCase):
+    def _inputs(self):
+        return InputData(
+            DemandSeries(point_series((1, 0))),
+            SolarSeries(point_series((0, 2))),
+            TariffSeries(point_series((0.5, 0.5)), point_series((0.1, 0.1))),
+        )
+
+    def test_labels_health_grid_and_pv_assumptions_and_limitations(self):
+        inputs = self._inputs()
+        battery = BatteryConfig(2, 1, 1, state_of_health=0.5)
+        config = GridMindConfig(
+            battery,
+            grid=GridConfig(max_import_power_kw=2.0, max_export_power_kw=1.0),
+            pv=PvConfig(),
+        )
+        baseline = simulate(config, inputs)
+        optimized = optimize_dispatch(
+            config,
+            inputs,
+            OptimizationConfig(soc_step_kwh=0.5, degradation_cost_per_kwh=0.1),
+        )
+        report = generate_report(baseline, config, inputs, optimized)
+
+        assumptions = " ".join(report.assumptions)
+        limitations = " ".join(report.limitations)
+        self.assertIn("state of health is 0.5", assumptions)
+        self.assertIn("usable capacity", assumptions)
+        self.assertIn("Grid import is capped at 2", assumptions)
+        self.assertIn("Grid export is capped at 1", assumptions)
+        self.assertIn("NOCT", assumptions)
+        self.assertIn("static input", limitations)
+        self.assertIn("not a full thermal", limitations)
+        self.assertIn("per-interval power caps", limitations)
+
+    def test_fingerprint_tracks_grid_health_and_pv_configuration(self):
+        inputs = self._inputs()
+        baseline_config = GridMindConfig(BatteryConfig(2, 1, 1))
+        baseline = simulate(baseline_config, inputs)
+        default = generate_report(baseline, baseline_config, inputs).scenario_fingerprint
+
+        variants = (
+            GridMindConfig(baseline_config.battery, grid=GridConfig(max_import_power_kw=5)),
+            GridMindConfig(
+                BatteryConfig(2, 1, 1, state_of_health=0.9), interval_minutes=60
+            ),
+            GridMindConfig(baseline_config.battery, pv=PvConfig()),
+        )
+        for config in variants:
+            with self.subTest(config=config):
+                self.assertNotEqual(
+                    generate_report(baseline, config, inputs).scenario_fingerprint,
+                    default,
+                )
 
 
 if __name__ == "__main__":

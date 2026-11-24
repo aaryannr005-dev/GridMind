@@ -4,6 +4,7 @@ import unittest
 from gridmind import (
     BatteryConfig,
     DemandSeries,
+    GridConfig,
     GridMindConfig,
     InputData,
     SolarSeries,
@@ -115,6 +116,63 @@ class SimulationTests(unittest.TestCase):
         data = inputs([1.0, 1.0], [0.0, 0.0], [1e308, 1e308])
         with self.assertRaisesRegex(ValueError, "total tariff costs"):
             simulate(GridMindConfig(BatteryConfig(1, 0, 0)), data)
+
+
+class GridLimitSimulationTests(unittest.TestCase):
+    def test_export_cap_curtails_surplus(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0), grid=GridConfig(max_export_power_kw=1)
+        )
+        result = simulate(config, inputs([0.0], [3.0], [0.2], [0.1]))
+        interval = result.intervals[0]
+        self.assertAlmostEqual(interval.grid_export_kwh, 1.0)
+        self.assertAlmostEqual(interval.solar_curtailment_kwh, 2.0)
+        self.assertAlmostEqual(interval.export_credit, 0.1)
+        self.assertAlmostEqual(interval.solar_generation_kwh, 3.0)
+
+    def test_export_cap_scales_with_interval_length(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0),
+            interval_minutes=30,
+            grid=GridConfig(max_export_power_kw=2),
+        )
+        step = timedelta(minutes=30)
+        data = InputData(
+            DemandSeries(series([0.0], step=step)),
+            SolarSeries(series([3.0], step=step)),
+            TariffSeries(series([0.2], step=step)),
+        )
+        interval = simulate(config, data).intervals[0]
+        self.assertAlmostEqual(interval.grid_export_kwh, 1.0)
+        self.assertAlmostEqual(interval.solar_curtailment_kwh, 2.0)
+
+    def test_import_at_the_cap_is_allowed(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0), grid=GridConfig(max_import_power_kw=1)
+        )
+        result = simulate(config, inputs([1.0], [0.0], [0.2]))
+        self.assertAlmostEqual(result.intervals[0].grid_import_kwh, 1.0)
+
+    def test_import_above_the_cap_is_rejected(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0), grid=GridConfig(max_import_power_kw=1)
+        )
+        with self.assertRaisesRegex(ValueError, "grid import exceeds"):
+            simulate(config, inputs([1.5], [0.0], [0.2]))
+
+    def test_state_of_health_limits_usable_charge(self):
+        battery = BatteryConfig(10, 10, 10, state_of_health=0.5)
+        result = simulate(
+            GridMindConfig(battery),
+            inputs([0.0, 0.0], [4.0, 4.0], [0.0, 0.0], [0.0, 0.0]),
+        )
+        first, second = result.intervals
+        self.assertAlmostEqual(first.battery_charge_kwh, 4.0)
+        self.assertAlmostEqual(first.state_of_charge_kwh, 4.0)
+        self.assertAlmostEqual(second.battery_charge_kwh, 1.0)
+        self.assertAlmostEqual(second.state_of_charge_kwh, 5.0)
+        self.assertAlmostEqual(second.grid_export_kwh, 3.0)
+        self.assertAlmostEqual(second.solar_curtailment_kwh, 0.0)
 
 
 if __name__ == "__main__":
