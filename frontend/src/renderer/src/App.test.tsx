@@ -132,7 +132,7 @@ describe("GridMind desktop shell", () => {
   it("shows an honest empty dashboard before a scenario runs", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: /solar, battery and the grid for one modelled day/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Welcome back, Test User/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
   });
@@ -190,7 +190,7 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /Energy and battery charts/ }));
 
     expect(window.localStorage.getItem("gridmind.dashboard-preferences.v1")).toContain('"showCharts":false');
-    expect(screen.getByText("Preferences saved on this device.")).toBeInTheDocument();
+    expect(screen.getByText("Dashboard preferences saved on this device.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
