@@ -168,13 +168,42 @@ def _transition(
             return None
         if not options.allow_grid_charging:
             charge_from_solar = charge_input
-        elif import_rate >= max(export_rate, 0.0):
+        elif import_rate < 0:
+            # A negative import price pays for grid charging, so prefer it.
+            charge_from_solar = 0.0
+        elif import_rate >= export_rate:
             charge_from_solar = min(charge_input, solar_surplus)
+        else:
+            # Exporting is worth more than importing, so leave exportable
+            # surplus for export. Solar that the export cap would otherwise
+            # curtail has no opportunity cost and is used for charging first.
+            exportable_surplus = solar_surplus
+            if export_limit_kwh is not None:
+                exportable_surplus = min(exportable_surplus, export_limit_kwh)
+            if export_rate <= 0:
+                exportable_surplus = 0.0
+            charge_from_solar = min(
+                charge_input, solar_surplus - exportable_surplus
+            )
         charge_from_grid = charge_input - charge_from_solar
         if not options.allow_grid_charging and charge_from_grid > 1e-9:
             return None
         grid_import = demand_after_solar + charge_from_grid
         remaining_surplus = max(0.0, solar_surplus - charge_from_solar)
+        if import_limit_kwh is not None and grid_import > import_limit_kwh + 1e-9:
+            # The import cap forces a different allocation: divert surplus
+            # solar from export/curtailment into charging so that grid import
+            # stays within the configured limit. Curtailed surplus is consumed
+            # first because it has no export opportunity cost.
+            shift = min(
+                grid_import - import_limit_kwh,
+                remaining_surplus,
+                charge_from_grid,
+            )
+            charge_from_solar += shift
+            charge_from_grid -= shift
+            grid_import -= shift
+            remaining_surplus -= shift
         grid_export = remaining_surplus if export_rate > 0 else 0.0
         solar_curtailment = remaining_surplus - grid_export
     elif next_soc < current_soc:
@@ -232,11 +261,14 @@ def optimize_dispatch(
     The battery state is searched on a discrete grid. Solar serves load first;
     solar surplus may be charged or exported according to the import and export
     prices; surplus is curtailed when its export price is negative or above a
-    configured export cap. Grid charging is selected when its price is below the
-    value of exporting available solar. Battery discharge serves load but is not
-    exported. Configured grid import caps make transitions infeasible when they
-    cannot serve demand within the cap. The default terminal state equals the
-    starting state to avoid consuming stored energy outside the modeled horizon.
+    configured export cap. Surplus curtailed by the export cap remains available
+    for charging, so it is used before grid charging when exporting is otherwise
+    more valuable. Grid charging is selected when its price is below the value of
+    exporting available solar. Battery discharge serves load but is not exported.
+    Configured grid import caps divert surplus solar from export into charging
+    when needed to stay within the cap; transitions remain infeasible when
+    demand alone exceeds it. The default terminal state equals the starting
+    state to avoid consuming stored energy outside the modeled horizon.
     ``OptimizationResult.total_cost`` is the tariff objective plus any configured
     degradation penalty; ``total_net_cost`` excludes that penalty.
     """
