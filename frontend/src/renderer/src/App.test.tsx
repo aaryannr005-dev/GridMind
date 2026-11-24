@@ -149,7 +149,7 @@ describe("GridMind desktop shell", () => {
 
   it("shows the interactive historical map viewer and current data provenance", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Energy map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Data & Maps" }));
     expect(screen.getByText("Historical reference, not live grid data")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Energy Commission source page/ })).toHaveAttribute("href", "https://www.st.gov.my/resources/performance-statistical-information-malaysian-electricity-supply-industry-2021");
     expect(screen.getByRole("link", { name: /Open MyGDI Explorer/ })).toHaveAttribute("href", "https://mygdix.mygeoportal.gov.my/");
