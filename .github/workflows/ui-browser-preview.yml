@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-preview:
@@ -32,10 +32,19 @@ jobs:
         run: npm ci
       - name: Build standalone HTML preview
         run: npm run build:preview
-      - name: Upload preview
-        uses: actions/upload-artifact@v4
+      - name: Publish temporary draft preview
+        uses: softprops/action-gh-release@v2
         with:
-          name: GridMind-UI-Preview
-          path: frontend/preview-dist/GridMind-UI-Preview.html
-          if-no-files-found: error
-          retention-days: 7
+          tag_name: ui-preview
+          name: GridMind UI Preview
+          body: |
+            Temporary standalone browser preview for reviewing the Phase 3A design system.
+            Download GridMind-UI-Preview.html and open it in a browser. No installation is required.
+            This preview does not connect to the Python simulation engine.
+          draft: true
+          prerelease: true
+          make_latest: false
+          files: frontend/preview-dist/GridMind-UI-Preview.html
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
