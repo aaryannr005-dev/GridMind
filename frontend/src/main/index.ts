@@ -31,7 +31,7 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 640,
     title: "GridMind",
-    backgroundColor: "#0b1020",
+    backgroundColor: "#f4f6fa",
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
