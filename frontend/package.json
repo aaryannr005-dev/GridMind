@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package:win": "node ../scripts/check_engine_artifact.cjs && npx --yes electron-builder@26.18.0 --win nsis --x64"
+    "package:win": "node ../scripts/check_engine_artifact.cjs && npx --yes electron-builder@26.18.0 --win nsis --x64",
+    "build:preview": "vite build --config vite.preview.config.ts && node scripts/inline-preview.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
@@ -52,7 +53,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "signExecutable": false
