@@ -139,6 +139,9 @@ def calculate_metrics(
 
     ``inputs`` is used to confirm scenario alignment and independently check
     interval tariff calculations. The function does not rerun dispatch.
+    ``tariff_costs_valid`` confirms per-interval tariff products and, for
+    optimizer results, that the reported objective equals modeled import cost
+    less export credit plus any configured degradation penalty.
     """
     if not isinstance(result, (SimulationResult, OptimizationResult)):
         raise ValueError("result must be a SimulationResult or OptimizationResult")
@@ -159,6 +162,7 @@ def calculate_metrics(
     demand_total = solar_total = direct_solar = solar_charge_total = 0.0
     imports = exports = charge_total = discharge_total = 0.0
     import_cost = export_credit = 0.0
+    degradation_total = 0.0
     max_load_error = max_solar_error = max_soc_error = 0.0
     energy_balance_valid = battery_constraints_valid = tariff_costs_valid = True
     current_soc = battery.initial_soc_kwh
@@ -175,6 +179,7 @@ def calculate_metrics(
         charge = interval.battery_charge_kwh
         discharge = interval.battery_discharge_kwh
         curtailment = getattr(interval, "solar_curtailment_kwh", 0.0)
+        degradation_cost = getattr(interval, "degradation_cost", 0.0)
 
         demand_total += interval.demand_kwh
         solar_total += interval.solar_generation_kwh
@@ -186,6 +191,7 @@ def calculate_metrics(
         discharge_total += discharge
         import_cost += interval.import_cost
         export_credit += interval.export_credit
+        degradation_total += degradation_cost
 
         load_error = abs(
             interval.demand_kwh
@@ -230,7 +236,7 @@ def calculate_metrics(
     accumulated_values = (
         demand_total, solar_total, direct_solar, solar_charge_total, imports,
         exports, charge_total, discharge_total, import_cost, export_credit,
-        max_load_error, max_solar_error, max_soc_error,
+        degradation_total, max_load_error, max_solar_error, max_soc_error,
     )
     if not all(math.isfinite(value) for value in accumulated_values):
         raise ValueError("result totals exceed the finite numeric range")
@@ -245,7 +251,7 @@ def calculate_metrics(
         )
         tariff_costs_valid &= math.isclose(
             result.total_cost,
-            import_cost - export_credit,
+            import_cost - export_credit + degradation_total,
             rel_tol=0.0,
             abs_tol=_TOLERANCE,
         )

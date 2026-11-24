@@ -4,6 +4,7 @@ import unittest
 from gridmind import (
     BatteryConfig,
     DemandSeries,
+    GridConfig,
     GridMindConfig,
     InputData,
     OptimizationConfig,
@@ -180,6 +181,80 @@ class OptimizerTests(unittest.TestCase):
         data = make_inputs([1.0, 1.0], [0.0, 0.0], [1e308, 1e308])
         with self.assertRaisesRegex(ValueError, "finite numeric range"):
             optimize_dispatch(GridMindConfig(BatteryConfig(1, 0, 0)), data)
+
+
+class OptimizerFidelityTests(unittest.TestCase):
+    def test_export_cap_curtails_surplus_and_limits_credit(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0), grid=GridConfig(max_export_power_kw=0.5)
+        )
+        result = optimize_dispatch(config, make_inputs([0], [2], [0], [0.4]))
+        interval = result.intervals[0]
+        self.assertAlmostEqual(interval.grid_export_kwh, 0.5)
+        self.assertAlmostEqual(interval.solar_curtailment_kwh, 1.5)
+        self.assertAlmostEqual(result.total_net_cost, -0.2)
+
+    def test_import_cap_can_make_the_scenario_infeasible(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0), grid=GridConfig(max_import_power_kw=1)
+        )
+        with self.assertRaisesRegex(ValueError, "grid limits"):
+            optimize_dispatch(config, make_inputs([2], [0], [0.5]))
+
+    def test_import_at_the_cap_remains_feasible(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 0, 0), grid=GridConfig(max_import_power_kw=1)
+        )
+        result = optimize_dispatch(config, make_inputs([1], [0], [0.5]))
+        self.assertAlmostEqual(result.intervals[0].grid_import_kwh, 1.0)
+
+    def test_degradation_penalty_is_added_to_the_objective_only(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 1], [0, 0], [0.1, 1.0]),
+            OptimizationConfig(soc_step_kwh=0.5, degradation_cost_per_kwh=0.2),
+        )
+        self.assertAlmostEqual(result.total_degradation_cost, 0.2)
+        self.assertAlmostEqual(result.total_net_cost, 0.1)
+        self.assertAlmostEqual(result.total_cost, 0.3)
+
+    def test_high_degradation_penalty_suppresses_cycling(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 1], [0, 0], [0.1, 1.0]),
+            OptimizationConfig(soc_step_kwh=0.5, degradation_cost_per_kwh=5.0),
+        )
+        self.assertAlmostEqual(result.total_degradation_cost, 0.0)
+        self.assertEqual(result.intervals[0].battery_charge_kwh, 0.0)
+        self.assertAlmostEqual(result.total_cost, 1.0)
+
+    def test_rejects_invalid_degradation_penalty(self):
+        for value in (-0.1, float("nan"), float("inf")):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "degradation_cost_per_kwh"):
+                OptimizationConfig(degradation_cost_per_kwh=value)
+        with self.assertRaisesRegex(ValueError, "degradation_cost_per_kwh"):
+            OptimizationConfig(degradation_cost_per_kwh=True)
+
+    def test_state_of_health_reduces_the_usable_state_of_charge_window(self):
+        config = GridMindConfig(BatteryConfig(2, 2, 2, state_of_health=0.5))
+        with self.assertRaisesRegex(ValueError, "cannot exceed"):
+            optimize_dispatch(
+                config,
+                make_inputs([0], [0], [0]),
+                OptimizationConfig(terminal_soc_kwh=2),
+            )
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 0], [2, 0], [0, 0]),
+            OptimizationConfig(
+                soc_step_kwh=0.5, terminal_soc_kwh=1, allow_grid_charging=False
+            ),
+        )
+        self.assertAlmostEqual(result.terminal_soc_kwh, 1.0)
+        self.assertAlmostEqual(result.intervals[0].state_of_charge_kwh, 1.0)
+        self.assertAlmostEqual(result.intervals[0].solar_curtailment_kwh, 1.0)
 
 
 if __name__ == "__main__":

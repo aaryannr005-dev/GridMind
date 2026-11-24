@@ -1,9 +1,24 @@
-import type { BatteryConfiguration, RunHourlyScenarioPayload } from "../../shared/protocol";
+import type {
+  BatteryConfiguration,
+  GridConfiguration,
+  PvConfiguration,
+  RunHourlyScenarioPayload,
+} from "../../shared/protocol";
 import { demoScenario } from "./demo-scenario";
 
 export type ScenarioSeriesKey = "demand_kwh" | "solar_generation_kwh" | "import_rate_per_kwh" | "export_rate_per_kwh";
 export type BatteryFormKey = "capacity_kwh" | "max_charge_power_kw" | "max_discharge_power_kw"
   | "charge_efficiency" | "discharge_efficiency" | "initial_soc_kwh" | "min_soc_kwh" | "max_soc_kwh";
+export type GridFormKey = "max_import_power_kw" | "max_export_power_kw";
+
+export interface PvFormValues {
+  enabled: boolean;
+  reference_temperature_c: string;
+  noct_c: string;
+  temperature_coefficient_per_c: string;
+  ambient_temperature_c: string;
+  solar_irradiance_w_m2: string;
+}
 
 export interface ScenarioFormValues {
   start_date: string;
@@ -13,6 +28,10 @@ export interface ScenarioFormValues {
   import_rate_per_kwh: string[];
   export_rate_per_kwh: string[];
   battery: Record<BatteryFormKey, string>;
+  battery_state_of_health: string;
+  grid: Record<GridFormKey, string>;
+  pv: PvFormValues;
+  degradation_cost_per_kwh: string;
 }
 
 export type ScenarioFormValidation =
@@ -37,6 +56,20 @@ export function createInitialScenarioValues(): ScenarioFormValues {
       min_soc_kwh: String(demoScenario.battery.min_soc_kwh),
       max_soc_kwh: String(demoScenario.battery.max_soc_kwh),
     },
+    battery_state_of_health: "1",
+    grid: {
+      max_import_power_kw: "",
+      max_export_power_kw: "",
+    },
+    pv: {
+      enabled: false,
+      reference_temperature_c: "25",
+      noct_c: "45",
+      temperature_coefficient_per_c: "-0.004",
+      ambient_temperature_c: "30",
+      solar_irradiance_w_m2: "800",
+    },
+    degradation_cost_per_kwh: "0",
   };
 }
 
@@ -61,6 +94,20 @@ function readNumber(value: string, field: string, errors: string[]): number | nu
   if (!Number.isFinite(parsed)) {
     errors.push(field + " must be a finite number.");
     return null;
+  }
+  return parsed;
+}
+
+function readOptionalLimit(value: string, field: string, errors: string[]): number | undefined {
+  if (!value.trim()) return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    errors.push(field + " must be a finite number or left blank for unlimited.");
+    return undefined;
+  }
+  if (parsed < 0) {
+    errors.push(field + " cannot be negative.");
+    return undefined;
   }
   return parsed;
 }
@@ -120,6 +167,11 @@ export function validateScenarioForm(values: ScenarioFormValues): ScenarioFormVa
       errors.push("Battery " + key.replaceAll("_", " ") + " must be greater than 0 and at most 1.");
     }
   }
+  const stateOfHealth = readNumber(values.battery_state_of_health, "Battery state of health", errors);
+  const validStateOfHealth = stateOfHealth !== null && stateOfHealth > 0 && stateOfHealth <= 1;
+  if (stateOfHealth !== null && !validStateOfHealth) {
+    errors.push("Battery state of health must be greater than 0 and at most 1.");
+  }
   if (Number.isFinite(batteryValues.min_soc_kwh) && Number.isFinite(batteryValues.max_soc_kwh)
     && batteryValues.min_soc_kwh > batteryValues.max_soc_kwh) {
     errors.push("Minimum battery charge cannot exceed maximum charge.");
@@ -127,6 +179,11 @@ export function validateScenarioForm(values: ScenarioFormValues): ScenarioFormVa
   if (Number.isFinite(batteryValues.capacity_kwh) && Number.isFinite(batteryValues.max_soc_kwh)
     && batteryValues.max_soc_kwh > batteryValues.capacity_kwh) {
     errors.push("Maximum battery charge cannot exceed battery capacity.");
+  } else if (validStateOfHealth && stateOfHealth !== null
+    && Number.isFinite(batteryValues.capacity_kwh)
+    && Number.isFinite(batteryValues.max_soc_kwh)
+    && batteryValues.max_soc_kwh > batteryValues.capacity_kwh * stateOfHealth) {
+    errors.push("Maximum battery charge cannot exceed usable battery capacity.");
   }
   if (Number.isFinite(batteryValues.initial_soc_kwh) && Number.isFinite(batteryValues.min_soc_kwh)
     && batteryValues.initial_soc_kwh < batteryValues.min_soc_kwh) {
@@ -137,16 +194,78 @@ export function validateScenarioForm(values: ScenarioFormValues): ScenarioFormVa
     errors.push("Starting battery charge cannot exceed maximum charge.");
   }
 
+  const gridLimits: GridConfiguration = {};
+  const maxImportPower = readOptionalLimit(
+    values.grid.max_import_power_kw,
+    "Grid maximum import power (kW)",
+    errors,
+  );
+  if (maxImportPower !== undefined) gridLimits.max_import_power_kw = maxImportPower;
+  const maxExportPower = readOptionalLimit(
+    values.grid.max_export_power_kw,
+    "Grid maximum export power (kW)",
+    errors,
+  );
+  if (maxExportPower !== undefined) gridLimits.max_export_power_kw = maxExportPower;
+
+  let pv: PvConfiguration | undefined;
+  let ambientTemperature: number[] | undefined;
+  let solarIrradiance: number[] | undefined;
+  if (values.pv.enabled) {
+    const referenceTemperature = readNumber(
+      values.pv.reference_temperature_c,
+      "PV reference temperature (°C)",
+      errors,
+    );
+    const noct = readNumber(values.pv.noct_c, "PV nominal operating cell temperature (°C)", errors);
+    const temperatureCoefficient = readNumber(
+      values.pv.temperature_coefficient_per_c,
+      "PV temperature coefficient (per °C)",
+      errors,
+    );
+    if (temperatureCoefficient !== null && temperatureCoefficient > 0) {
+      errors.push("PV temperature coefficient must be zero or negative.");
+    }
+    const ambient = readNumber(values.pv.ambient_temperature_c, "PV ambient temperature (°C)", errors);
+    const irradiance = readNumber(
+      values.pv.solar_irradiance_w_m2,
+      "PV solar irradiance (W/m²)",
+      errors,
+    );
+    if (irradiance !== null && irradiance < 0) {
+      errors.push("PV solar irradiance cannot be negative.");
+    }
+    if (referenceTemperature !== null && noct !== null && temperatureCoefficient !== null
+      && ambient !== null && irradiance !== null && irradiance >= 0) {
+      pv = {
+        reference_temperature_c: referenceTemperature,
+        noct_c: noct,
+        temperature_coefficient_per_c: temperatureCoefficient,
+      };
+      ambientTemperature = Array.from({ length: 24 }, () => ambient);
+      solarIrradiance = Array.from({ length: 24 }, () => irradiance);
+    }
+  }
+
+  let degradationCost: number | undefined;
+  if (values.degradation_cost_per_kwh.trim()) {
+    const parsed = Number(values.degradation_cost_per_kwh);
+    if (!Number.isFinite(parsed)) {
+      errors.push("Battery degradation cost must be a finite number.");
+    } else if (parsed < 0) {
+      errors.push("Battery degradation cost cannot be negative.");
+    } else if (parsed !== 0) {
+      degradationCost = parsed;
+    }
+  }
+
   if (errors.length || !demand || !solar || !importRates || !exportRates) return { ok: false, errors };
+  if (values.pv.enabled && (!pv || !ambientTemperature || !solarIrradiance)) {
+    return { ok: false, errors: ["PV derating requires valid weather and PV parameters."] };
+  }
   const battery: BatteryConfiguration = {
-    capacity_kwh: batteryValues.capacity_kwh,
-    max_charge_power_kw: batteryValues.max_charge_power_kw,
-    max_discharge_power_kw: batteryValues.max_discharge_power_kw,
-    charge_efficiency: batteryValues.charge_efficiency,
-    discharge_efficiency: batteryValues.discharge_efficiency,
-    initial_soc_kwh: batteryValues.initial_soc_kwh,
-    min_soc_kwh: batteryValues.min_soc_kwh,
-    max_soc_kwh: batteryValues.max_soc_kwh,
+    ...batteryValues,
+    ...(stateOfHealth !== null && stateOfHealth !== 1 ? { state_of_health: stateOfHealth } : {}),
   };
   return {
     ok: true,
@@ -158,6 +277,11 @@ export function validateScenarioForm(values: ScenarioFormValues): ScenarioFormVa
       import_rate_per_kwh: importRates,
       export_rate_per_kwh: exportRates,
       battery,
+      ...(Object.keys(gridLimits).length ? { grid: gridLimits } : {}),
+      ...(pv && ambientTemperature && solarIrradiance
+        ? { pv, ambient_temperature_c: ambientTemperature, solar_irradiance_w_m2: solarIrradiance }
+        : {}),
+      ...(degradationCost !== undefined ? { degradation_cost_per_kwh: degradationCost } : {}),
     },
   };
 }

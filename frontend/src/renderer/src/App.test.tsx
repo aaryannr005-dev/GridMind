@@ -251,4 +251,116 @@ describe("GridMind desktop shell", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/Demand at 00:00 MYT must be at least 0/i);
     expect(runHourlyScenario).not.toHaveBeenCalled();
   });
+
+  it("renders the Phase 2 control rail sections and unmodelled weather rows", () => {
+    render(<App />);
+
+    for (const title of [
+      "A · Simulation time",
+      "B · Grid connection",
+      "C · Environmental conditions",
+      "D · Load profile",
+      "E · Energy management strategy",
+      "F · Electricity tariffs",
+      "G · Battery health and degradation",
+      "H · Financial settings",
+    ]) {
+      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    }
+    expect(screen.getByText("Weather preset")).toBeInTheDocument();
+    expect(screen.getByText("Wind speed")).toBeInTheDocument();
+    expect(screen.getAllByText("NOT MODELED")).toHaveLength(2);
+  });
+
+  it("applies zero and limited grid connection settings from the control rail", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Grid maximum import power" }), { target: { value: "0" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Grid maximum export power" }), { target: { value: "2.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply grid limits & run" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      grid: { max_import_power_kw: 0, max_export_power_kw: 2.5 },
+    })));
+  });
+
+  it("applies PV derating and expands weather inputs from the control rail", async () => {
+    render(<App />);
+
+    const ambient = screen.getByRole("spinbutton", { name: "Ambient temperature" });
+    expect(ambient).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /PV temperature derating/ }));
+    expect(ambient).toBeEnabled();
+    fireEvent.change(ambient, { target: { value: "32" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Solar irradiance" }), { target: { value: "900" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply weather & run" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      pv: { reference_temperature_c: 25, noct_c: 45, temperature_coefficient_per_c: -0.004 },
+      ambient_temperature_c: Array(24).fill(32),
+      solar_irradiance_w_m2: Array(24).fill(900),
+    })));
+  });
+
+  it("validates SoH against usable capacity and applies degradation costs in the control rail", async () => {
+    render(<App />);
+
+    const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
+    fireEvent.change(soh, { target: { value: "0.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply battery health & run" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(/usable battery capacity/i);
+    expect(runHourlyScenario).not.toHaveBeenCalled();
+
+    fireEvent.change(soh, { target: { value: "1" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Battery degradation penalty" }), { target: { value: "0.05" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply battery health & run" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      degradation_cost_per_kwh: 0.05,
+    })));
+  });
+
+  it("shows battery state of health at 100% and updates usable capacity in the Simulation Lab", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+
+    const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
+    expect(soh).toHaveValue(1);
+    expect(screen.getByText("10.00 kWh")).toBeInTheDocument();
+
+    fireEvent.change(soh, { target: { value: "0.8" } });
+    expect(screen.getByText("8.00 kWh")).toBeInTheDocument();
+  });
+
+  it("rejects invalid SoH and maximum charge combinations in the Simulation Lab", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+
+    const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
+    fireEvent.change(soh, { target: { value: "0.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
+
+    expect(runHourlyScenario).not.toHaveBeenCalled();
+    expect(screen.getAllByText("Maximum battery charge cannot exceed usable battery capacity.")).toHaveLength(2);
+    expect(soh).toHaveAttribute("aria-invalid", "true");
+
+    fireEvent.change(soh, { target: { value: "1.1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
+
+    expect(runHourlyScenario).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/state of health must be greater than 0 and at most 1/i);
+  });
+
+  it("sends a valid Simulation Lab SoH and reduced maximum charge to the engine", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Battery state of health" }), { target: { value: "0.5" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum charge" }), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      battery: expect.objectContaining({ capacity_kwh: 10, max_soc_kwh: 5, state_of_health: 0.5 }),
+    })));
+  });
 });

@@ -365,6 +365,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .form-control input[aria-invalid="true"], .hourly-input-table input[aria-invalid="true"] { border-color: var(--warn); }
 .form-control small { color: var(--faint); font-size: 10px; line-height: 1.45; }
 .form-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.form-field-error { margin: 0; color: var(--warn); font-size: 10.5px; line-height: 1.45; }
 .hourly-table-wrap { max-height: 470px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--panel); }
 .hourly-input-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 11px; text-align: left; }
 .hourly-input-table caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }

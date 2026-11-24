@@ -9,6 +9,8 @@ export interface SliderNumberFieldProps {
   /** Slider step. Also controls the decimals used when a value comes from the slider. */
   step: number;
   invalid?: boolean;
+  /** Optional id of help text that describes this field. */
+  helpId?: string;
   onValueChange: (value: string) => void;
 }
 
@@ -32,7 +34,7 @@ function clamp(value: number, min: number, max: number): number {
  * only a convenience pointer and never clamps what can be typed.
  */
 export function SliderNumberField({
-  label, unit, value, min, max, step, invalid, onValueChange,
+  label, unit, value, min, max, step, invalid, helpId, onValueChange,
 }: SliderNumberFieldProps) {
   const numberId = useId();
   const decimals = decimalsForStep(step);
@@ -53,6 +55,7 @@ export function SliderNumberField({
           type="range"
           className="slider-input"
           aria-label={`${label} (${unit}) slider`}
+          aria-describedby={helpId}
           min={sliderMin}
           max={sliderMax}
           step={step}
@@ -73,6 +76,7 @@ export function SliderNumberField({
           min={min}
           value={value}
           aria-invalid={invalid || undefined}
+          aria-describedby={helpId}
           onChange={(event) => onValueChange(event.target.value)}
         />
       </div>

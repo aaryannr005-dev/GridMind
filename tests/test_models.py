@@ -2,7 +2,17 @@ from datetime import datetime, timezone, timedelta
 import unittest
 from zoneinfo import ZoneInfo
 
-from gridmind import BatteryConfig, DemandSeries, GridMindConfig, InputData, SolarSeries, TariffSeries, TimeSeriesPoint
+from gridmind import (
+    BatteryConfig,
+    DemandSeries,
+    GridConfig,
+    GridMindConfig,
+    InputData,
+    PvConfig,
+    SolarSeries,
+    TariffSeries,
+    TimeSeriesPoint,
+)
 
 BASE = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -92,6 +102,69 @@ class ConfigurationTests(unittest.TestCase):
             GridMindConfig(battery, currency="ringgit")
         with self.assertRaisesRegex(ValueError, "datetime range"):
             GridMindConfig(battery, interval_minutes=10**1000)
+
+
+class BatteryHealthTests(unittest.TestCase):
+    def test_state_of_health_scales_usable_capacity_and_default_maximum(self):
+        battery = BatteryConfig(10, 5, 5, state_of_health=0.8)
+        self.assertAlmostEqual(battery.usable_capacity_kwh, 8.0)
+        self.assertAlmostEqual(battery.max_soc_kwh, 8.0)
+
+    def test_explicit_maximum_cannot_exceed_usable_capacity(self):
+        with self.assertRaisesRegex(ValueError, "after state_of_health"):
+            BatteryConfig(10, 5, 5, max_soc_kwh=9, state_of_health=0.8)
+
+    def test_initial_soc_cannot_exceed_usable_capacity(self):
+        with self.assertRaisesRegex(ValueError, "cannot exceed"):
+            BatteryConfig(10, 5, 5, initial_soc_kwh=9, state_of_health=0.8)
+
+    def test_rejects_state_of_health_outside_positive_fraction(self):
+        for value in (0, -0.1, 1.1):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "state_of_health"):
+                BatteryConfig(10, 5, 5, state_of_health=value)
+        with self.assertRaisesRegex(ValueError, "state_of_health must be a number"):
+            BatteryConfig(10, 5, 5, state_of_health=True)
+
+
+class GridConfigurationTests(unittest.TestCase):
+    def test_defaults_are_unlimited(self):
+        grid = GridConfig()
+        self.assertIsNone(grid.max_import_power_kw)
+        self.assertIsNone(grid.max_export_power_kw)
+
+    def test_rejects_negative_or_nonfinite_limits(self):
+        for name in ("max_import_power_kw", "max_export_power_kw"):
+            for value in (-1, float("nan"), float("inf")):
+                with self.subTest(name=name, value=value), self.assertRaises(ValueError):
+                    GridConfig(**{name: value})
+        with self.assertRaisesRegex(ValueError, "must be a number"):
+            GridConfig(max_import_power_kw=True)
+
+    def test_config_defaults_to_unlimited_grid_and_no_pv(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        self.assertIsInstance(config.grid, GridConfig)
+        self.assertIsNone(config.pv)
+
+    def test_config_rejects_wrong_grid_or_pv_type(self):
+        battery = BatteryConfig(1, 1, 1)
+        with self.assertRaisesRegex(ValueError, "GridConfig"):
+            GridMindConfig(battery, grid=object())
+        with self.assertRaisesRegex(ValueError, "PvConfig"):
+            GridMindConfig(battery, pv=object())
+
+
+class PvConfigurationTests(unittest.TestCase):
+    def test_defaults_match_first_order_noct_model(self):
+        pv = PvConfig()
+        self.assertEqual(pv.reference_temperature_c, 25.0)
+        self.assertEqual(pv.noct_c, 45.0)
+        self.assertEqual(pv.temperature_coefficient_per_c, -0.004)
+
+    def test_rejects_positive_or_nonfinite_coefficients(self):
+        with self.assertRaisesRegex(ValueError, "zero or negative"):
+            PvConfig(temperature_coefficient_per_c=0.001)
+        with self.assertRaisesRegex(ValueError, "finite"):
+            PvConfig(noct_c=float("nan"))
 
 
 if __name__ == "__main__":

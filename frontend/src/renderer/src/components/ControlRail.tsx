@@ -10,7 +10,7 @@ import {
   touPeakWindow,
   type LoadProfileId,
 } from "../scenario-shaping";
-import { validateScenarioForm, type ScenarioFormValues } from "../scenario-form";
+import { validateScenarioForm, type GridFormKey, type PvFormValues, type ScenarioFormValues } from "../scenario-form";
 
 export type StrategyId = "baseline" | "gridmind";
 
@@ -34,8 +34,6 @@ interface ControlRailProps {
 
 const unmodeledRows = [
   "Weather preset",
-  "Ambient temperature",
-  "Solar irradiance",
   "Wind speed",
 ];
 
@@ -124,6 +122,18 @@ export function ControlRail({
     });
   }
 
+  function updateGridLimit(key: GridFormKey, value: string): void {
+    onValuesChange({ ...values, grid: { ...values.grid, [key]: value } });
+  }
+
+  function updatePv(patch: Partial<PvFormValues>): void {
+    onValuesChange({ ...values, pv: { ...values.pv, ...patch } });
+  }
+
+  function applyCurrentInputs(): void {
+    runUpdated(values);
+  }
+
   const intervalCount = report?.interval_count ?? 0;
   const cursorClock = report && playhead !== null
     ? formatClock(report.baseline_intervals[Math.min(playhead, report.baseline_intervals.length - 1)].timestamp)
@@ -176,17 +186,90 @@ export function ControlRail({
       </section>
 
       <section className="rail-section">
-        <h2 className="rail-title">B · Environmental conditions</h2>
+        <h2 className="rail-title">B · Grid connection</h2>
+        <div className="rail-tariff-fields">
+          <label>
+            <span>Max import power (kW)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="Unlimited"
+              aria-label="Grid maximum import power"
+              value={values.grid.max_import_power_kw}
+              onChange={(event) => updateGridLimit("max_import_power_kw", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>Max export power (kW)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="Unlimited"
+              aria-label="Grid maximum export power"
+              value={values.grid.max_export_power_kw}
+              onChange={(event) => updateGridLimit("max_export_power_kw", event.target.value)}
+            />
+          </label>
+        </div>
+        <button type="button" className="rail-apply" disabled={isRunning} onClick={applyCurrentInputs}>
+          {isRunning ? "Engine running…" : "Apply grid limits & run"}
+        </button>
+        <p className="rail-note">Limits apply to each hourly interval. Leave blank for unlimited; 0 is a real limit. Export above the limit is curtailed, while import above it rejects the scenario.</p>
+      </section>
+
+      <section className="rail-section">
+        <h2 className="rail-title">C · Environmental conditions</h2>
+        <label className="rail-option">
+          <input
+            type="checkbox"
+            checked={values.pv.enabled}
+            onChange={(event) => updatePv({ enabled: event.target.checked })}
+          />
+          <span>
+            <strong>PV temperature derating</strong>
+            <small>Apply a NOCT cell-temperature model to the solar series before dispatch.</small>
+          </span>
+        </label>
+        <div className="rail-tariff-fields">
+          <label>
+            <span>Ambient temperature (°C)</span>
+            <input
+              type="number"
+              step="0.1"
+              aria-label="Ambient temperature"
+              disabled={!values.pv.enabled}
+              value={values.pv.ambient_temperature_c}
+              onChange={(event) => updatePv({ ambient_temperature_c: event.target.value })}
+            />
+          </label>
+          <label>
+            <span>Solar irradiance (W/m²)</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              aria-label="Solar irradiance"
+              disabled={!values.pv.enabled}
+              value={values.pv.solar_irradiance_w_m2}
+              onChange={(event) => updatePv({ solar_irradiance_w_m2: event.target.value })}
+            />
+          </label>
+        </div>
+        <button type="button" className="rail-apply" disabled={isRunning} onClick={applyCurrentInputs}>
+          {isRunning ? "Engine running…" : "Apply weather & run"}
+        </button>
+        <p className="rail-note">Weather inputs are assumed constant across all 24 intervals and are not live weather. Derating can only reduce solar output; it never adds generation.</p>
         <ul className="rail-list">
           {unmodeledRows.map((row) => (
             <li key={row}><span>{row}</span><span className="not-modeled">NOT MODELED</span></li>
           ))}
         </ul>
-        <p className="rail-note">The Python engine covers solar, load, battery and grid only. Weather, wind and temperature inputs would be fictional, so they stay disabled until the engine supports them.</p>
       </section>
 
       <section className="rail-section">
-        <h2 className="rail-title">C · Load profile</h2>
+        <h2 className="rail-title">D · Load profile</h2>
         <fieldset className="rail-fieldset">
           <legend className="visually-hidden">Load profile preset</legend>
           {loadProfiles.map((preset) => (
@@ -206,7 +289,7 @@ export function ControlRail({
       </section>
 
       <section className="rail-section">
-        <h2 className="rail-title">D · Energy management strategy</h2>
+        <h2 className="rail-title">E · Energy management strategy</h2>
         <fieldset className="rail-fieldset">
           <legend className="visually-hidden">Dispatch strategy</legend>
           <label className="rail-option">
@@ -228,7 +311,7 @@ export function ControlRail({
       </section>
 
       <section className="rail-section">
-        <h2 className="rail-title">E · Electricity tariffs</h2>
+        <h2 className="rail-title">F · Electricity tariffs</h2>
         <dl className="rail-readout rail-readout-grid">
           <div><dt>Import range</dt><dd className="mono">{importRange ? `${importRange.min}–${importRange.max}` : "—"}</dd></div>
           <div><dt>Export range</dt><dd className="mono">{exportRange ? `${exportRange.min}–${exportRange.max}` : "—"}</dd></div>
@@ -263,7 +346,40 @@ export function ControlRail({
       </section>
 
       <section className="rail-section">
-        <h2 className="rail-title">F · Financial summary</h2>
+        <h2 className="rail-title">G · Battery health and degradation</h2>
+        <div className="rail-tariff-fields">
+          <label>
+            <span>State of health (0–1]</span>
+            <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              aria-label="Battery state of health"
+              value={values.battery_state_of_health}
+              onChange={(event) => onValuesChange({ ...values, battery_state_of_health: event.target.value })}
+            />
+          </label>
+          <label>
+            <span>Degradation penalty ({currency}/kWh)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.001"
+              aria-label="Battery degradation penalty"
+              value={values.degradation_cost_per_kwh}
+              onChange={(event) => onValuesChange({ ...values, degradation_cost_per_kwh: event.target.value })}
+            />
+          </label>
+        </div>
+        <button type="button" className="rail-apply" disabled={isRunning} onClick={applyCurrentInputs}>
+          {isRunning ? "Engine running…" : "Apply battery health & run"}
+        </button>
+        <p className="rail-note">State of health statically scales usable capacity; calendar and cycle ageing are not modelled. The degradation penalty affects only the optimiser objective, not tariff costs or reported savings.</p>
+      </section>
+
+      <section className="rail-section">
+        <h2 className="rail-title">H · Financial settings</h2>
         {activeMetrics ? (
           <dl className="rail-readout rail-readout-grid">
             <div><dt>Grid import cost</dt><dd className="mono">{activeMetrics.import_cost.toFixed(2)} {currency}</dd></div>
@@ -275,7 +391,7 @@ export function ControlRail({
             </div>
           </dl>
         ) : <p className="rail-note">Run a scenario to see engine-calculated costs.</p>}
-        <p className="rail-note">Costs are modeled estimates from the scenario tariffs, never measured bills.</p>
+        <p className="rail-note">Costs are modeled estimates from the scenario tariffs, never measured bills. Savings exclude the degradation penalty.</p>
       </section>
 
       {railErrors.length > 0 && (

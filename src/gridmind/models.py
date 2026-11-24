@@ -123,7 +123,12 @@ class InputData:
 
 @dataclass(frozen=True, slots=True)
 class BatteryConfig:
-    """Battery limits and starting state; efficiencies are fractions in (0, 1]."""
+    """Battery limits and starting state; efficiencies are fractions in (0, 1].
+
+    ``state_of_health`` is a fraction in (0, 1] that scales the usable energy
+    capacity. A value below 1 reduces the default maximum state of charge; an
+    explicit ``max_soc_kwh`` may not exceed the resulting usable capacity.
+    """
 
     capacity_kwh: float
     max_charge_power_kw: float
@@ -133,6 +138,12 @@ class BatteryConfig:
     initial_soc_kwh: float = 0.0
     min_soc_kwh: float = 0.0
     max_soc_kwh: float | None = None
+    state_of_health: float = 1.0
+
+    @property
+    def usable_capacity_kwh(self) -> float:
+        """Nominal capacity reduced by the configured state of health."""
+        return self.capacity_kwh * self.state_of_health
 
     def __post_init__(self) -> None:
         _finite_number(self.capacity_kwh, "capacity_kwh", minimum=0)
@@ -140,13 +151,17 @@ class BatteryConfig:
             raise ValueError("capacity_kwh must be greater than zero")
         _finite_number(self.max_charge_power_kw, "max_charge_power_kw", minimum=0)
         _finite_number(self.max_discharge_power_kw, "max_discharge_power_kw", minimum=0)
-        max_soc = self.capacity_kwh if self.max_soc_kwh is None else self.max_soc_kwh
+        _finite_number(self.state_of_health, "state_of_health", minimum=0)
+        if self.state_of_health == 0 or self.state_of_health > 1:
+            raise ValueError("state_of_health must be in the interval (0, 1]")
+        usable_capacity = self.usable_capacity_kwh
+        max_soc = usable_capacity if self.max_soc_kwh is None else self.max_soc_kwh
         _finite_number(self.min_soc_kwh, "min_soc_kwh", minimum=0)
         _finite_number(max_soc, "max_soc_kwh", minimum=0)
         if self.min_soc_kwh > max_soc:
             raise ValueError("min_soc_kwh cannot exceed max_soc_kwh")
-        if max_soc > self.capacity_kwh:
-            raise ValueError("max_soc_kwh cannot exceed capacity_kwh")
+        if max_soc > usable_capacity:
+            raise ValueError("max_soc_kwh cannot exceed capacity_kwh after state_of_health")
         object.__setattr__(self, "max_soc_kwh", max_soc)
         for name in ("charge_efficiency", "discharge_efficiency"):
             value = getattr(self, name)
@@ -161,12 +176,51 @@ class BatteryConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class GridConfig:
+    """Per-interval grid connection power limits in kW; ``None`` is unlimited."""
+
+    max_import_power_kw: float | None = None
+    max_export_power_kw: float | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("max_import_power_kw", "max_export_power_kw"):
+            value = getattr(self, name)
+            if value is not None:
+                _finite_number(value, name, minimum=0)
+
+
+@dataclass(frozen=True, slots=True)
+class PvConfig:
+    """First-order PV cell-temperature derating parameters (NOCT model).
+
+    Solar input is treated as generation at ``reference_temperature_c``.
+    Cell temperature is estimated from ambient temperature and irradiance with
+    the nominal operating cell temperature (``noct_c``) at 800 W/m² and 20 °C.
+    """
+
+    reference_temperature_c: float = 25.0
+    noct_c: float = 45.0
+    temperature_coefficient_per_c: float = -0.004
+
+    def __post_init__(self) -> None:
+        _finite_number(self.reference_temperature_c, "reference_temperature_c")
+        _finite_number(self.noct_c, "noct_c")
+        _finite_number(
+            self.temperature_coefficient_per_c, "temperature_coefficient_per_c"
+        )
+        if self.temperature_coefficient_per_c > 0:
+            raise ValueError("temperature_coefficient_per_c must be zero or negative")
+
+
+@dataclass(frozen=True, slots=True)
 class GridMindConfig:
     """Top-level inputs for a simulation run, without simulation behavior."""
 
     battery: BatteryConfig
     interval_minutes: int = 60
     currency: str = "MYR"
+    grid: GridConfig | None = None
+    pv: PvConfig | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.interval_minutes, bool) or not isinstance(self.interval_minutes, int) or self.interval_minutes <= 0:
@@ -177,6 +231,12 @@ class GridMindConfig:
             raise ValueError("interval_minutes exceeds the supported datetime range") from exc
         if not isinstance(self.battery, BatteryConfig):
             raise ValueError("battery must be a BatteryConfig")
+        grid = GridConfig() if self.grid is None else self.grid
+        if not isinstance(grid, GridConfig):
+            raise ValueError("grid must be a GridConfig")
+        object.__setattr__(self, "grid", grid)
+        if self.pv is not None and not isinstance(self.pv, PvConfig):
+            raise ValueError("pv must be a PvConfig")
         if (
             not isinstance(self.currency, str)
             or len(self.currency.strip()) != 3

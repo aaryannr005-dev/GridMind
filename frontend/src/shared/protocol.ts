@@ -7,6 +7,18 @@ export interface BatteryConfiguration {
   initial_soc_kwh?: number;
   min_soc_kwh?: number;
   max_soc_kwh?: number;
+  state_of_health?: number;
+}
+
+export interface GridConfiguration {
+  max_import_power_kw?: number | null;
+  max_export_power_kw?: number | null;
+}
+
+export interface PvConfiguration {
+  reference_temperature_c?: number;
+  noct_c?: number;
+  temperature_coefficient_per_c?: number;
 }
 
 export interface RunHourlyScenarioPayload {
@@ -17,6 +29,11 @@ export interface RunHourlyScenarioPayload {
   export_rate_per_kwh: number[];
   battery: BatteryConfiguration;
   currency?: string;
+  grid?: GridConfiguration;
+  pv?: PvConfiguration;
+  ambient_temperature_c?: number[];
+  solar_irradiance_w_m2?: number[];
+  degradation_cost_per_kwh?: number;
 }
 
 export interface RunHourlyScenarioRequest {
@@ -138,15 +155,23 @@ const batteryKeys = new Set([
   "initial_soc_kwh",
   "min_soc_kwh",
   "max_soc_kwh",
+  "state_of_health",
 ]);
 
 const requiredBatteryKeys = ["capacity_kwh", "max_charge_power_kw", "max_discharge_power_kw"] as const;
 const arrayKeys = ["demand_kwh", "solar_generation_kwh", "import_rate_per_kwh", "export_rate_per_kwh"] as const;
+const weatherKeys = ["ambient_temperature_c", "solar_irradiance_w_m2"] as const;
+const gridKeys = new Set(["max_import_power_kw", "max_export_power_kw"]);
+const pvKeys = new Set(["reference_temperature_c", "noct_c", "temperature_coefficient_per_c"]);
 const payloadKeys = new Set([
   "start_date",
   ...arrayKeys,
   "battery",
   "currency",
+  "grid",
+  "pv",
+  ...weatherKeys,
+  "degradation_cost_per_kwh",
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -174,7 +199,37 @@ export function isRunHourlyScenarioPayload(value: unknown): value is RunHourlySc
   const battery = value.battery;
   if (!isRecord(battery) || !hasOnlyKeys(battery, batteryKeys)) return false;
   if (!requiredBatteryKeys.every((key) => isFiniteNumber(battery[key]))) return false;
-  return Object.entries(battery).every(([, item]) => isFiniteNumber(item));
+  if (!Object.entries(battery).every(([, item]) => isFiniteNumber(item))) return false;
+  const soh = battery.state_of_health;
+  if (soh !== undefined && (!isFiniteNumber(soh) || soh <= 0 || soh > 1)) return false;
+
+  const grid = value.grid;
+  if (grid !== undefined) {
+    if (!isRecord(grid) || !hasOnlyKeys(grid, gridKeys)) return false;
+    for (const limit of Object.values(grid)) {
+      if (limit !== null && (!isFiniteNumber(limit) || limit < 0)) return false;
+    }
+  }
+
+  const weather = weatherKeys.filter((key) => value[key] !== undefined);
+  if (weather.length !== 0 && weather.length !== weatherKeys.length) return false;
+  const pv = value.pv;
+  if ((pv !== undefined) !== (weather.length === weatherKeys.length)) return false;
+  if (pv !== undefined) {
+    if (!isRecord(pv) || !hasOnlyKeys(pv, pvKeys) || !Object.values(pv).every(isFiniteNumber)) return false;
+    const coefficient = pv.temperature_coefficient_per_c;
+    if (coefficient !== undefined && (!isFiniteNumber(coefficient) || coefficient > 0)) return false;
+  }
+  for (const key of weatherKeys) {
+    const series = value[key];
+    if (series === undefined) continue;
+    if (!Array.isArray(series) || series.length !== 24 || !series.every(isFiniteNumber)) return false;
+    if (key === "solar_irradiance_w_m2" && series.some((item) => item < 0)) return false;
+  }
+
+  const degradation = value.degradation_cost_per_kwh;
+  if (degradation !== undefined && (!isFiniteNumber(degradation) || degradation < 0)) return false;
+  return true;
 }
 
 export function isGridMindScenarioReport(value: unknown): value is GridMindScenarioReport {

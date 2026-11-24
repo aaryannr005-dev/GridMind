@@ -29,6 +29,7 @@ class IntervalResult:
     import_cost: float
     export_credit: float
     net_cost: float
+    solar_curtailment_kwh: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +85,10 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
     power and capacity limits, then exports. When solar is insufficient, the
     battery serves demand within its power and state-of-charge limits, then the
     grid supplies the remainder. Grid charging is not performed.
+
+    Configured grid limits are per-interval power caps. Solar surplus above an
+    export cap is curtailed; demand that would require more than the import cap
+    raises ``ValueError`` rather than silently leaving load unserved.
     """
     if not isinstance(config, GridMindConfig):
         raise ValueError("config must be a GridMindConfig")
@@ -92,7 +97,18 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
     _validate_interval_spacing(inputs, config.interval_minutes)
 
     battery = config.battery
+    grid = config.grid
     interval_hours = config.interval_minutes / 60
+    import_limit_kwh = (
+        None
+        if grid.max_import_power_kw is None
+        else grid.max_import_power_kw * interval_hours
+    )
+    export_limit_kwh = (
+        None
+        if grid.max_export_power_kw is None
+        else grid.max_export_power_kw * interval_hours
+    )
     state_of_charge = battery.initial_soc_kwh
     results: list[IntervalResult] = []
 
@@ -123,13 +139,24 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
         remaining_demand -= battery_output
 
         grid_import = remaining_demand
-        grid_export = solar_surplus
+        if import_limit_kwh is not None and grid_import > import_limit_kwh + 1e-9:
+            raise ValueError(
+                "grid import exceeds max_import_power_kw at "
+                f"{demand_point.timestamp.isoformat()}"
+            )
+        grid_export = (
+            solar_surplus
+            if export_limit_kwh is None
+            else min(solar_surplus, export_limit_kwh)
+        )
+        solar_curtailment = solar_surplus - grid_export
         import_cost = grid_import * import_point.value
         export_rate = export_rates[index].value if export_rates is not None else 0.0
         export_credit = grid_export * export_rate
         derived_values = (
             solar_to_load, charge_input, battery_output, grid_import, grid_export,
-            state_of_charge, import_cost, export_credit, import_cost - export_credit,
+            solar_curtailment, state_of_charge, import_cost, export_credit,
+            import_cost - export_credit,
         )
         if not all(math.isfinite(value) for value in derived_values):
             raise ValueError(
@@ -150,6 +177,7 @@ def simulate(config: GridMindConfig, inputs: InputData) -> SimulationResult:
                 import_cost=import_cost,
                 export_credit=export_credit,
                 net_cost=import_cost - export_credit,
+                solar_curtailment_kwh=solar_curtailment,
             )
         )
 

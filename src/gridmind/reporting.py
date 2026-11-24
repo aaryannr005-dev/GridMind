@@ -245,7 +245,11 @@ def generate_report(
         "battery": {name: getattr(config.battery, name) for name in (
             "capacity_kwh", "max_charge_power_kw", "max_discharge_power_kw",
             "charge_efficiency", "discharge_efficiency", "initial_soc_kwh",
-            "min_soc_kwh", "max_soc_kwh")},
+            "min_soc_kwh", "max_soc_kwh", "state_of_health")},
+        "grid": {name: getattr(config.grid, name) for name in (
+            "max_import_power_kw", "max_export_power_kw")},
+        "pv": None if config.pv is None else {name: getattr(config.pv, name) for name in (
+            "reference_temperature_c", "noct_c", "temperature_coefficient_per_c")},
         "demand": [(point.timestamp.isoformat(), point.value) for point in inputs.demand.points],
         "solar": [(point.timestamp.isoformat(), point.value) for point in inputs.solar.points],
         "import_rates": [(point.timestamp.isoformat(), point.value) for point in inputs.tariffs.import_rates],
@@ -306,11 +310,37 @@ def generate_report(
         "Tariffs, demand, and solar generation are the supplied scenario inputs; results are simulated estimates, not measured outcomes.",
         "Baseline and GridMind comparisons use the same input series and configuration.",
     ]
+    if config.battery.state_of_health < 1:
+        assumptions.append(
+            f"Battery state of health is {config.battery.state_of_health:g}, giving "
+            f"{config.battery.usable_capacity_kwh:g} kWh usable capacity before the configured SOC window."
+        )
+    if config.grid.max_import_power_kw is not None:
+        assumptions.append(
+            f"Grid import is capped at {config.grid.max_import_power_kw:g} kW per interval."
+        )
+    if config.grid.max_export_power_kw is not None:
+        assumptions.append(
+            f"Grid export is capped at {config.grid.max_export_power_kw:g} kW per interval; surplus above the cap is curtailed."
+        )
+    if config.pv is not None:
+        assumptions.append(
+            "Solar generation inputs were temperature-derated with a first-order NOCT model "
+            f"(reference {config.pv.reference_temperature_c:g} °C, NOCT {config.pv.noct_c:g} °C, "
+            f"coefficient {config.pv.temperature_coefficient_per_c:g}/°C); reported solar generation is the effective series."
+        )
     if gridmind is not None and hasattr(gridmind, "soc_step_kwh"):
         assumptions.append(f"GridMind optimizer SOC resolution is {gridmind.soc_step_kwh:g} kWh, with terminal SOC {gridmind.terminal_soc_kwh:g} kWh.")
+        if gridmind.total_degradation_cost > 0:
+            assumptions.append(
+                f"GridMind's dispatch objective includes a battery-degradation penalty totaling "
+                f"{gridmind.total_degradation_cost:g} {config.currency}; reported cost comparisons exclude it."
+            )
     limitations = (
-        "Battery degradation, temperature, ageing, and other omitted physical effects are not represented.",
-        "Grid limits and export constraints are not modeled by the current engine.",
+        "Battery state of health is a static input; calendar and cycle ageing are not simulated.",
+        "The optional battery-degradation penalty applies per kWh discharged in the optimizer objective; it is not a measured or forecast replacement cost.",
+        "Grid limits are per-interval power caps. Demand above the import cap rejects the scenario; surplus above the export cap is curtailed as unexported solar.",
+        "PV temperature derating is a first-order NOCT model driven by supplied ambient temperature and irradiance; it is not a full thermal, shading, or soiling model.",
         "For intervals longer than one hour, no hourly split is inferred; interval-level rows and charts are retained.",
         "For intervals shorter than one hour, hourly totals group intervals by their local start hour; a partial first or last hour remains partial.",
         "Hourly aggregation is omitted when interval boundaries do not align cleanly to clock hours.",
