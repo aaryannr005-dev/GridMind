@@ -5,7 +5,7 @@ export const THEME_KEY = "gridmind.theme.v1";
 const SUPPORTED_THEMES: readonly ThemeName[] = ["light", "dark"];
 
 export function parseTheme(value: unknown): ThemeName {
-  return value === "light" || value === "dark" ? value : "dark";
+  return value === "light" || value === "dark" ? value : "light";
 }
 
 export function loadTheme(): ThemeName {
@@ -22,7 +22,7 @@ export function loadTheme(): ThemeName {
   } catch {
     // matchMedia is not available in every test environment.
   }
-  return "dark";
+  return "light";
 }
 
 export function saveTheme(theme: ThemeName): boolean {
