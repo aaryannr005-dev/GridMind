@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { TopNavTabs } from "./components/TopNavTabs";
+import { WelcomeScreen } from "./components/WelcomeScreen";
 import { HomePage } from "./pages/HomePage";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { getNavigationItem } from "./navigation";
 import type { PageId } from "./types";
 import { demoScenario } from "./demo-scenario";
@@ -12,12 +12,16 @@ import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario
 import { DEFAULT_DASHBOARD_PREFERENCES, loadDashboardPreferences, saveDashboardPreferences, type DashboardPreferences } from "./dashboard-preferences";
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { EnergyMapPage } from "./pages/EnergyMapPage";
+import { AboutPage } from "./pages/AboutPage";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { applyTheme, loadTheme, saveTheme, type ThemeName } from "./theme";
+import { loadDisplayName, saveDisplayName } from "./profile";
 import type { StrategyId } from "./components/ControlRail";
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
+  const [displayName, setDisplayName] = useState(loadDisplayName);
+  const [profileSaved, setProfileSaved] = useState(true);
   const [report, setReport] = useState<GridMindScenarioReport | null>(null);
   const [reportSource, setReportSource] = useState<"synthetic" | "custom" | null>(null);
   const [scenarioValues, setScenarioValues] = useState<ScenarioFormValues>(createInitialScenarioValues);
@@ -26,20 +30,16 @@ export default function App() {
   const [dashboardPreferences, setDashboardPreferences] = useState<DashboardPreferences>(loadDashboardPreferences);
   const [preferencesSaved, setPreferencesSaved] = useState(true);
   const [theme, setTheme] = useState<ThemeName>(loadTheme);
-  // Timeline cursor and strategy display state shared across the workspace.
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [strategy, setStrategy] = useState<StrategyId>("baseline");
   const page = getNavigationItem(activePage);
-  const engineStatus = isRunning ? "ENGINE RUNNING" : report ? "ENGINE RESPONDED" : "ENGINE IDLE";
 
   useEffect(() => {
     applyTheme(theme);
-    // Read once on mount; subsequent changes go through updateTheme.
   }, []);
 
-  // A new engine report invalidates the old cursor and playback state.
   useEffect(() => {
     setPlayhead(null);
     setPlaying(false);
@@ -50,6 +50,13 @@ export default function App() {
     setTheme(next);
     applyTheme(next);
     saveTheme(next);
+  }
+
+  function updateDisplayName(value: string): void {
+    const normalized = value.trim().replace(/\s+/g, " ").slice(0, 40);
+    const saved = saveDisplayName(normalized);
+    if (saved) setDisplayName(normalized);
+    setProfileSaved(saved);
   }
 
   async function runScenario(payload: RunHourlyScenarioPayload, source: "synthetic" | "custom"): Promise<void> {
@@ -70,10 +77,6 @@ export default function App() {
     }
   }
 
-  function runDemo(): void {
-    void runScenario(demoScenario, "synthetic");
-  }
-
   function updateDashboardPreferences(preferences: DashboardPreferences): void {
     setDashboardPreferences(preferences);
     setPreferencesSaved(saveDashboardPreferences(preferences));
@@ -83,24 +86,28 @@ export default function App() {
     updateDashboardPreferences({ ...DEFAULT_DASHBOARD_PREFERENCES });
   }
 
+  if (!displayName) {
+    return <WelcomeScreen onContinue={updateDisplayName} />;
+  }
+
   return (
     <div className="app-shell">
       <main className="main-panel">
         <TopNavTabs activePage={activePage} onNavigate={setActivePage} />
         <div className="workspace-frame">
           <div className="workspace-status">
-            <span className="connection-indicator"><i className={isRunning ? "engine-running" : report ? "engine-ready" : ""} />{engineStatus}</span>
             <span className="crumb-label">{page.eyebrow} · {page.label}</span>
             <ThemeToggle theme={theme} onChange={updateTheme} />
           </div>
           <div className="page-content">
             {activePage === "home"
               ? <HomePage
+                displayName={displayName}
                 report={report}
                 reportSource={reportSource}
                 isRunning={isRunning}
                 error={error}
-                onRunDemo={runDemo}
+                onRunDemo={() => { void runScenario(demoScenario, "synthetic"); }}
                 onRunScenario={(payload) => { void runScenario(payload, "custom"); }}
                 dashboardPreferences={dashboardPreferences}
                 scenarioValues={scenarioValues}
@@ -130,8 +137,16 @@ export default function App() {
                   : activePage === "energy-map"
                     ? <EnergyMapPage />
                     : activePage === "settings"
-                      ? <PreferencesPage preferences={dashboardPreferences} onChange={updateDashboardPreferences} onReset={resetDashboardPreferences} isSaved={preferencesSaved} />
-                      : <PlaceholderPage page={page} />}
+                      ? <PreferencesPage
+                        preferences={dashboardPreferences}
+                        onChange={updateDashboardPreferences}
+                        onReset={resetDashboardPreferences}
+                        isSaved={preferencesSaved}
+                        displayName={displayName}
+                        onSaveDisplayName={updateDisplayName}
+                        profileSaved={profileSaved}
+                      />
+                      : <AboutPage />}
             <footer className="app-footer"><span>GRIDMIND <b>•</b> LOCAL ENERGY SIMULATION</span><span>{report ? "SCENARIO LOADED · " + (reportSource === "custom" ? "USER INPUTS" : "SYNTHETIC EXAMPLE") : "NO SCENARIO LOADED"}</span></footer>
           </div>
         </div>
