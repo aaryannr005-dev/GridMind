@@ -8,7 +8,8 @@ import { ControlRail, type StrategyId } from "../components/ControlRail";
 import { DEFAULT_DASHBOARD_PREFERENCES, type DashboardPreferences } from "../dashboard-preferences";
 import type { ScenarioFormValues } from "../scenario-form";
 
-interface HomePageProps {\n  displayName: string;
+interface HomePageProps {
+  displayName: string;
   report: GridMindScenarioReport | null;
   reportSource: "synthetic" | "custom" | null;
   isRunning: boolean;
