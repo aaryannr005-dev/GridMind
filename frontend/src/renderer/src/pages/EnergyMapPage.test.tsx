@@ -14,7 +14,7 @@ describe("Phase 4E public data experience", () => {
     expect(screen.getAllByText("Malaysia, national aggregate")).toHaveLength(2);
     expect(screen.getAllByText("million kWh")).toHaveLength(2);
     expect(screen.getAllByText("25 November 2026")).toHaveLength(2);
-    expect(screen.getAllByRole("link", { name: "CC BY 4.0" })).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "CC BY 4.0" })).toHaveAttribute("href", "https://creativecommons.org/licenses/by/4.0/");
   });
 
   it("filters datasets by type and restores all records", () => {
