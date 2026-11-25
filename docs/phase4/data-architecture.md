@@ -90,7 +90,7 @@ Not yet implemented: managed raw-file archive/cache; automatic refresh; persiste
 
 `ReferenceMeasurements` accepts one or more measured channels: demand, solar generation, grid import, grid export and battery state of charge. Each channel is a timestamped kWh series and must align exactly with the simulation intervals (timezone-equivalent instants are accepted). The caller records the source name and is responsible for ensuring that the meter boundary corresponds to the simulated quantity.
 
-`validate_simulation_against_reference` reports measurement count, mean absolute error, root mean square error, mean bias error, maximum absolute error, and measured/modelled totals for each supplied channel. A channel passes only when its maximum absolute interval error is within the explicitly supplied absolute tolerance. This tolerance is a caller-selected comparison setting, not a universal engineering standard.
+`validate_simulation_against_reference` reports measurement count, mean absolute error, root mean square error, mean bias error and maximum absolute error for each supplied channel. Measured/modelled totals are reported only for interval-energy channels; battery state of charge is a sampled state and is not summed. A channel passes only when its maximum absolute interval error is within the explicitly supplied absolute tolerance. This tolerance is a caller-selected comparison setting, not a universal engineering standard.
 
 Missing channels are omitted, not inferred. Misaligned timestamps, empty channels, negative measurements and invalid tolerances are rejected. The comparison is offline and does not download, persist, resample, interpolate, impute, calibrate or alter simulation inputs or calculations.
 
