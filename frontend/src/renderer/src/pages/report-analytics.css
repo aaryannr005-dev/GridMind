@@ -38,3 +38,15 @@
   .report-chart-panel { break-inside: avoid; box-shadow: none; }
   .report-trend-chart { max-height: 220px; }
 }
+
+.report-sensitivity { gap: 12px; }
+.report-sensitivity-intro { margin: -4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; max-width: 760px; }
+.report-sensitivity-controls { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-l); background: var(--panel); }
+.report-sensitivity-controls label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 600; }
+.report-sensitivity-controls select { min-width: 0; width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface, var(--panel)); color: var(--text-strong); font: inherit; }
+.report-sensitivity-controls button { white-space: nowrap; }
+.report-sensitivity-results { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-l); background: var(--panel); }
+.report-sensitivity-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--text-strong); font-size: 11px; }
+.report-sensitivity-summary span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.report-sensitivity-error { color: var(--danger, #b54747); font-size: 11px; }
+@media (max-width: 720px) { .report-sensitivity-controls { grid-template-columns: 1fr; } .report-sensitivity-controls button { width: 100%; } }
