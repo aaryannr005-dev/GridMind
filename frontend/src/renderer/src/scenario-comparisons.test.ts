@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { GridMindScenarioReport } from "../../shared/protocol";
+import { createInitialScenarioValues } from "./scenario-form";
 import {
   appendScenarioComparison,
   COMPARISON_STORAGE_KEY,
@@ -42,6 +43,22 @@ describe("scenario comparison storage", () => {
     expect(snapshot.gridmind?.netCost).toBe(1.9);
     expect(snapshot.costSavings).toBe(0.4);
     expect(snapshot.batteryCapacityKwh).toBe(10);
+  });
+
+  it("retains signed tariff assumptions and nullable self-consumption metrics", () => {
+    const scenario = createInitialScenarioValues();
+    scenario.import_rate_per_kwh = Array(24).fill("-0.05");
+    scenario.export_rate_per_kwh = Array(24).fill("0.02");
+    scenario.grid.max_import_power_kw = "2";
+    scenario.grid.max_export_power_kw = "1";
+    const snapshot = createScenarioComparison(report, "custom", scenario, "Negative tariff case");
+    snapshot.gridmind!.solarSelfConsumptionRatio = null;
+    expect(snapshot.averageImportTariff).toBeCloseTo(-0.05);
+    expect(snapshot.averageExportTariff).toBeCloseTo(0.02);
+    expect(snapshot.maxImportPowerKw).toBe(2);
+    expect(snapshot.maxExportPowerKw).toBe(1);
+    expect(saveScenarioComparisons([snapshot])).toBe(true);
+    expect(loadScenarioComparisons()[0].gridmind?.solarSelfConsumptionRatio).toBeNull();
   });
 
   it("persists validated snapshots and ignores malformed stored entries", () => {
