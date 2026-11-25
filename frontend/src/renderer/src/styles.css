@@ -758,3 +758,68 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
   .stale-results-banner { align-items: stretch; flex-direction: column; margin-inline: 12px; }
   .stale-results-banner button { width: 100%; }
 }
+
+
+/* ---- Phase 3E: report workspace and print layout --------------------- */
+.report-export-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-l);
+  background: var(--panel); box-shadow: var(--shadow);
+}
+.report-export-bar > div:first-child { display: grid; gap: 3px; }
+.report-export-bar strong { color: var(--text-strong); font-size: 12px; }
+.report-export-bar span { color: var(--muted); font-size: 11px; }
+.report-export-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-export-actions button { min-height: 34px; }
+.text-action-button {
+  display: block; margin-top: 8px; padding: 0; border: 0; color: var(--accent-strong);
+  background: transparent; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer;
+}
+.report-input-summary { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.report-input-summary h3 { margin: 0; color: var(--text-strong); font-size: 12px; }
+.report-input-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.report-input-grid > div, .report-outcome-grid article {
+  display: grid; gap: 4px; min-width: 0; padding: 11px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--panel-soft);
+}
+.report-input-grid span, .report-outcome-grid span { color: var(--muted); font-size: 10px; }
+.report-input-grid strong { color: var(--text-strong); font: 600 12px var(--mono); overflow-wrap: anywhere; }
+.report-outcome-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.report-outcome-grid strong { color: var(--text-strong); font: 650 17px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-outcome-grid small { color: var(--faint); font-size: 10px; line-height: 1.45; }
+.report-check-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.report-check-grid > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--panel); }
+.report-check-grid span { color: var(--muted); font-size: 11px; }
+.report-check-grid strong { color: var(--ok); font-size: 10px; }
+.report-check-grid [data-valid="false"] strong { color: var(--danger); }
+@media (max-width: 850px) {
+  .report-outcome-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-input-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .report-export-bar { align-items: stretch; flex-direction: column; }
+  .report-export-actions { display: grid; grid-template-columns: 1fr; }
+  .report-input-grid, .report-check-grid, .report-outcome-grid { grid-template-columns: 1fr; }
+}
+@media print {
+  @page { size: A4; margin: 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="light"] {
+    color-scheme: light; --bg: #fff; --panel: #fff; --panel-soft: #f7f8fa;
+    --text: #202b3a; --text-strong: #111c2b; --muted: #4b5869; --faint: #687587;
+    --line: #d8dee8; --line-strong: #bdc7d5; --shadow: none;
+  }
+  body { min-width: 0 !important; background: #fff !important; color: #202b3a !important; }
+  .topbar, .workspace-status, .report-export-bar, .stale-results-banner, .app-footer,
+  .theme-toggle, .text-action-button { display: none !important; }
+  .workspace-frame { padding: 0 !important; }
+  .page-content { max-width: none !important; padding: 0 !important; }
+  .reports-page { gap: 12px !important; }
+  .report-page-intro h1 { font-size: 24px !important; }
+  .results-section, .report-identity, .report-outcome, .report-validation,
+  .metric-card, .chart-card, .assumptions-panel { break-inside: avoid; box-shadow: none !important; }
+  .chart-workspace, .flow-panel { break-inside: avoid; box-shadow: none !important; }
+  .chart-workspace svg, .chart-card svg { max-width: 100% !important; }
+  .comparison-table { font-size: 9px !important; }
+  .report-metadata, .report-input-summary, .report-outcome-grid article { box-shadow: none !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+}
