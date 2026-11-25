@@ -21,7 +21,7 @@ function scenario(id: string, name: string, netCost: number, currency = "MYR"): 
     scenario_fingerprint: id, period_start: "2026-01-15T00:00:00+08:00",
     period_end: "2026-01-16T00:00:00+08:00", interval_minutes: 60,
     interval_count: 24, currency, baseline: metrics,
-    gridmind: { ...metrics, net_cost: netCost - 0.4, grid_import_kwh: 6 },
+    gridmind: { ...metrics, net_cost: netCost - 0.4, grid_import_kwh: netCost < 1.5 ? 4 : 6 },
     cost_savings: 0.4,
   };
 }
