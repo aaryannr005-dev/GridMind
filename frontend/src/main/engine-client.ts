@@ -92,7 +92,7 @@ export class EngineClient {
       ));
     }
     const id = randomUUID();
-    return new Promise<GridMindScenarioReport>((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(id);
         reject(new EngineClientError("ENGINE_TIMEOUT", "The scenario took too long to complete"));
