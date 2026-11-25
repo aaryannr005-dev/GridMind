@@ -8,7 +8,7 @@ reported as a percentage of configured battery capacity.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import html
 import json
@@ -123,7 +123,7 @@ def _hourly(rows: tuple[IntervalReportRow, ...], interval_minutes: int) -> tuple
         return None
     if any(row.timestamp.minute % interval_minutes or row.timestamp.second or row.timestamp.microsecond for row in rows):
         return None
-    grouped: dict[tuple[object, int, timedelta], list[IntervalReportRow]] = {}
+    grouped: dict[tuple[date, int, timedelta], list[IntervalReportRow]] = {}
     for row in rows:
         local_hour = row.timestamp.replace(minute=0, second=0, microsecond=0)
         offset = row.timestamp.utcoffset()
@@ -145,7 +145,10 @@ def _hourly(rows: tuple[IntervalReportRow, ...], interval_minutes: int) -> tuple
         grid_export_kwh=sum(item.grid_export_kwh for item in items),
         state_of_charge_percent=items[-1].state_of_charge_percent,
         net_cost=sum(item.net_cost for item in items),
-    ) for _, items in sorted(grouped.items()))
+    ) for items in sorted(
+        grouped.values(),
+        key=lambda values: values[0].timestamp.astimezone(timezone.utc),
+    ))
 
 
 def _comparison_rows(comparison: StrategyComparison) -> tuple[ComparisonRow, ...]:
