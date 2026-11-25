@@ -31,6 +31,8 @@ class OptimizationConfig:
     terminal_soc_kwh: float | None = None
     allow_grid_charging: bool = True
     degradation_cost_per_kwh: float = 0.0
+    minimum_soc_schedule_kwh: tuple[float, ...] | None = None
+    grid_charging_schedule: tuple[bool, ...] | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.soc_step_kwh, bool) or not isinstance(self.soc_step_kwh, (int, float)):
@@ -52,6 +54,23 @@ class OptimizationConfig:
                 raise ValueError("terminal_soc_kwh must be a nonnegative finite number")
         if not isinstance(self.allow_grid_charging, bool):
             raise ValueError("allow_grid_charging must be a boolean")
+        if self.minimum_soc_schedule_kwh is not None:
+            if not isinstance(self.minimum_soc_schedule_kwh, tuple) or not self.minimum_soc_schedule_kwh:
+                raise ValueError("minimum_soc_schedule_kwh must be a non-empty tuple")
+            for value in self.minimum_soc_schedule_kwh:
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise ValueError("minimum_soc_schedule_kwh values must be finite nonnegative numbers")
+                try:
+                    valid = math.isfinite(value)
+                except OverflowError:
+                    valid = False
+                if not valid or value < 0:
+                    raise ValueError("minimum_soc_schedule_kwh values must be finite nonnegative numbers")
+        if self.grid_charging_schedule is not None:
+            if not isinstance(self.grid_charging_schedule, tuple) or not self.grid_charging_schedule:
+                raise ValueError("grid_charging_schedule must be a non-empty tuple")
+            if any(not isinstance(value, bool) for value in self.grid_charging_schedule):
+                raise ValueError("grid_charging_schedule values must be booleans")
         if isinstance(self.degradation_cost_per_kwh, bool) or not isinstance(self.degradation_cost_per_kwh, (int, float)):
             raise ValueError("degradation_cost_per_kwh must be a nonnegative finite number")
         try:
@@ -133,6 +152,8 @@ def _transition(
     export_rate: float,
     config: GridMindConfig,
     options: OptimizationConfig,
+    *,
+    allow_grid_charging: bool,
 ) -> tuple[float, float, float, float, float, float, float, float, float] | None:
     """Return transition energy/cost values, or None when physically invalid.
 
@@ -166,7 +187,7 @@ def _transition(
         charge_input = (next_soc - current_soc) / battery.charge_efficiency
         if charge_input > battery.max_charge_power_kw * duration_hours + 1e-9:
             return None
-        if not options.allow_grid_charging:
+        if not allow_grid_charging:
             charge_from_solar = charge_input
         elif import_rate < 0:
             # A negative import price pays for grid charging, so prefer it.
@@ -186,7 +207,7 @@ def _transition(
                 charge_input, solar_surplus - exportable_surplus
             )
         charge_from_grid = charge_input - charge_from_solar
-        if not options.allow_grid_charging and charge_from_grid > 1e-9:
+        if not allow_grid_charging and charge_from_grid > 1e-9:
             return None
         grid_import = demand_after_solar + charge_from_grid
         remaining_surplus = max(0.0, solar_surplus - charge_from_solar)
@@ -288,6 +309,17 @@ def optimize_dispatch(
     if terminal_soc > battery.max_soc_kwh:
         raise ValueError("terminal_soc_kwh cannot exceed battery max_soc_kwh")
 
+    horizon = len(inputs.demand.points)
+    if options.minimum_soc_schedule_kwh is not None:
+        if len(options.minimum_soc_schedule_kwh) != horizon:
+            raise ValueError("minimum_soc_schedule_kwh must contain one value per input interval")
+        if any(value < battery.min_soc_kwh or value > battery.max_soc_kwh for value in options.minimum_soc_schedule_kwh):
+            raise ValueError("minimum_soc_schedule_kwh values must be within the battery SOC limits")
+        if terminal_soc < options.minimum_soc_schedule_kwh[-1] - 1e-9:
+            raise ValueError("terminal_soc_kwh cannot be below the final scheduled minimum SOC")
+    if options.grid_charging_schedule is not None and len(options.grid_charging_schedule) != horizon:
+        raise ValueError("grid_charging_schedule must contain one value per input interval")
+
     states = _state_levels(
         battery.min_soc_kwh, battery.max_soc_kwh, initial_soc, terminal_soc, options.soc_step_kwh
     )
@@ -325,14 +357,24 @@ def optimize_dispatch(
             max_discharge = battery.max_discharge_power_kw * (config.interval_minutes / 60) / battery.discharge_efficiency
             lower_soc = max(battery.min_soc_kwh, current_soc - max_discharge)
             upper_soc = min(battery.max_soc_kwh, current_soc + max_charge)
-            if not options.allow_grid_charging:
+            interval_grid_charging = options.allow_grid_charging and (
+                options.grid_charging_schedule is None or options.grid_charging_schedule[index]
+            )
+            if not interval_grid_charging:
                 solar_surplus = max(0.0, solar_point.value - demand_point.value)
                 upper_soc = min(upper_soc, current_soc + solar_surplus * battery.charge_efficiency)
 
-            first_candidate = bisect_left(states, lower_soc - tolerance)
+            reserve_soc = (
+                options.minimum_soc_schedule_kwh[index]
+                if options.minimum_soc_schedule_kwh is not None
+                else battery.min_soc_kwh
+            )
+            first_candidate = bisect_left(states, max(lower_soc, reserve_soc) - tolerance)
             last_candidate = bisect_right(states, upper_soc + tolerance)
             for next_index in range(first_candidate, last_candidate):
                 next_soc = states[next_index]
+                if next_soc < reserve_soc - tolerance:
+                    continue
                 action = _transition(
                     current_soc,
                     next_soc,
@@ -342,6 +384,7 @@ def optimize_dispatch(
                     export_rate,
                     config,
                     options,
+                    allow_grid_charging=interval_grid_charging,
                 )
                 if action is None:
                     continue
