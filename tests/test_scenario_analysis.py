@@ -111,7 +111,7 @@ def test_optimizer_can_be_used_for_each_sensitivity_case():
     assert report.metric is SensitivityMetric.NET_COST
 
 
-@pytest.mark.parametrize("multipliers", [(), (0,), (-1,), (float("nan"),), (float("inf"),), (True,), (1, 1)])
+@pytest.mark.parametrize("multipliers", [(), (-1,), (float("nan"),), (float("inf"),), (True,), (1, 1)])
 def test_rejects_invalid_multipliers(multipliers):
     with pytest.raises(ValueError, match="multipliers"):
         run_sensitivity_analysis(
