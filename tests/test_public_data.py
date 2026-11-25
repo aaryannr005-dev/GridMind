@@ -26,7 +26,7 @@ class OpenDosmImportTests(unittest.TestCase):
         self.assertEqual(result.metadata.license_url, "https://creativecommons.org/licenses/by/4.0/")
         self.assertEqual(result.metadata.data_as_of, date(2026, 6, 30))
         self.assertEqual(result.metadata.last_updated, date(2026, 10, 8))
-        self.assertEqual(result.metadata.metadata_checked_on, date(2026, 10, 24))
+        self.assertEqual(result.metadata.metadata_checked_on, date(2026, 11, 25))
         self.assertIn("N/A", result.metadata.next_update)
         self.assertEqual([item.value for item in result.observations], [120.5, 130.25])
         self.assertEqual(result.period_start, date(2025, 12, 1))
