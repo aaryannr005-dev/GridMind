@@ -91,22 +91,22 @@ def test_evaluation_rejects_wrong_length():
         (
             (
                 datetime(2025, 11, 2, 0, 0, tzinfo=ZoneInfo("America/New_York")),
-                datetime(2025, 11, 2, 1, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York"), fold=0),
-                datetime(2025, 11, 2, 1, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York"), fold=1),
+                datetime(2025, 11, 2, 1, 0, tzinfo=ZoneInfo("America/New_York"), fold=0),
+                datetime(2025, 11, 2, 1, 0, tzinfo=ZoneInfo("America/New_York"), fold=1),
             ),
             (
-                datetime(2025, 11, 2, 2, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York")),
-                datetime(2025, 11, 2, 3, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York")),
+                datetime(2025, 11, 2, 2, 0, tzinfo=ZoneInfo("America/New_York")),
+                datetime(2025, 11, 2, 3, 0, tzinfo=ZoneInfo("America/New_York")),
             ),
         ),
         (
             (
-                datetime(2025, 3, 9, 0, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York")),
-                datetime(2025, 3, 9, 1, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York")),
+                datetime(2025, 3, 9, 0, 0, tzinfo=ZoneInfo("America/New_York")),
+                datetime(2025, 3, 9, 1, 0, tzinfo=ZoneInfo("America/New_York")),
             ),
             (
-                datetime(2025, 3, 9, 3, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York")),
-                datetime(2025, 3, 9, 4, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York")),
+                datetime(2025, 3, 9, 3, 0, tzinfo=ZoneInfo("America/New_York")),
+                datetime(2025, 3, 9, 4, 0, tzinfo=ZoneInfo("America/New_York")),
             ),
         ),
     ],
