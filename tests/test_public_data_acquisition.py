@@ -7,8 +7,8 @@ from gridmind.public_data import ELECTRICITY_CONSUMPTION
 from gridmind.public_data_acquisition import (
     DownloadedPublicData,
     PublicDataDownloadError,
-    download_open_dosm_csv,
     _SameHostHttpsRedirectHandler,
+    download_open_dosm_csv,
 )
 
 
@@ -80,7 +80,7 @@ class PublicDataAcquisitionTests(TestCase):
         with self.assertRaisesRegex(PublicDataDownloadError, "empty file"):
             download_open_dosm_csv(ELECTRICITY_CONSUMPTION)
 
-    def test_redirect_handler_allows_same_host_relative_redirects(self):\n        request = Request("https://storage.data.gov.my/energy/source.csv")\n        redirected = _SameHostHttpsRedirectHandler().redirect_request(\n            request, None, 302, "Found", {}, "/energy/new.csv"\n        )\n        self.assertEqual(redirected.full_url, "https://storage.data.gov.my/energy/new.csv")\n\n    def test_redirect_handler_rejects_foreign_hosts(self):\n        request = Request("https://storage.data.gov.my/energy/source.csv")\n        with self.assertRaisesRegex(PublicDataDownloadError, "approved HTTPS source host"):\n            _SameHostHttpsRedirectHandler().redirect_request(\n                request, None, 302, "Found", {}, "https://example.com/steal.csv"\n            )\n\n    def test_redirect_handler_allows_same_host_relative_redirects(self):
+    def test_redirect_handler_allows_same_host_relative_redirects(self):
         request = Request("https://storage.data.gov.my/energy/source.csv")
         redirected = _SameHostHttpsRedirectHandler().redirect_request(
             request, None, 302, "Found", {}, "/energy/new.csv"
@@ -101,4 +101,3 @@ class PublicDataAcquisitionTests(TestCase):
             download_open_dosm_csv(ELECTRICITY_CONSUMPTION, timeout_seconds=0)
         with self.assertRaisesRegex(ValueError, "max_bytes"):
             download_open_dosm_csv(ELECTRICITY_CONSUMPTION, max_bytes=0)
-
