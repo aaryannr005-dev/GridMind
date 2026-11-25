@@ -556,7 +556,7 @@ describe("GridMind sensitivity analysis", () => {
       multipliers: [0.5, 0.75, 1, 1.25, 1.5],
       scenario: expect.objectContaining({ start_date: "2026-01-15", currency: "MYR" }),
     })));
-    expect(await screen.findByText("1.85 MYR")).toBeInTheDocument();
+    expect((await screen.findAllByText("1.85 MYR")).length).toBeGreaterThan(1);
     expect(screen.getByText("50%")).toBeInTheDocument();
     expect(screen.getByText("150%")).toBeInTheDocument();
   });
