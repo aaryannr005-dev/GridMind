@@ -357,7 +357,38 @@ def optimize_dispatch(
     # allowing the approximate DP result to be more expensive than that
     # feasible schedule even when both runs have the same terminal SOC.
     if options.baseline_soc_schedule_kwh is not None:
-        states = sorted(set(states).union(options.baseline_soc_schedule_kwh))
+        # Reference states are mandatory: dropping one could remove the
+        # feasible baseline path and reintroduce unfair cost comparisons.
+        mandatory_states = {
+            battery.min_soc_kwh,
+            battery.max_soc_kwh,
+            initial_soc,
+            terminal_soc,
+            *options.baseline_soc_schedule_kwh,
+        }
+        if len(mandatory_states) > 1001:
+            raise ValueError(
+                "baseline_soc_schedule_kwh contains more than 1001 distinct "
+                "states; shorten the horizon to keep the optimizer within its "
+                "state limit"
+            )
+        regular_states = [value for value in states if value not in mandatory_states]
+        available_slots = 1001 - len(mandatory_states)
+        if len(regular_states) > available_slots:
+            # Keep the full feasible reference path and deterministically
+            # thin only the optional regular grid to preserve the DP safety cap.
+            if available_slots == 1:
+                sampled_regular = [regular_states[len(regular_states) // 2]]
+            elif available_slots > 1:
+                last_index = len(regular_states) - 1
+                sampled_regular = [
+                    regular_states[round(index * last_index / (available_slots - 1))]
+                    for index in range(available_slots)
+                ]
+            else:
+                sampled_regular = []
+            regular_states = sampled_regular
+        states = sorted(mandatory_states.union(regular_states))
     if len(states) > 1001:
         raise ValueError(
             "soc_step_kwh creates more than 1001 states; use a coarser step"
