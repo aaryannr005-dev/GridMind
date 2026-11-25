@@ -14,6 +14,7 @@ from .reporting import (
     ComparisonRow, GridMindReport, HourlyReportRow, IntervalReportRow,
     ReportChart, generate_report, render_markdown,
 )
+from .public_data_acquisition import DownloadedPublicData, PublicDataDownloadError, download_open_dosm_csv
 from .public_data import (
     ELECTRICITY_CONSUMPTION,
     ELECTRICITY_SUPPLY,
@@ -36,6 +37,7 @@ __all__ = [
     "ReportChart", "DatasetMetadata", "MissingPeriod", "MonthlyObservation",
     "ObservationStatus", "OpenDosmDataset", "OpenDosmSeries",
     "ELECTRICITY_CONSUMPTION", "ELECTRICITY_SUPPLY", "OPEN_DOSM_DATASETS",
+    "DownloadedPublicData", "PublicDataDownloadError", "download_open_dosm_csv",
     "calculate_metrics", "compare_strategies", "optimize_dispatch", "simulate",
     "generate_report", "render_markdown", "load_open_dosm_csv",
     "apply_temperature_derating", "cell_temperature_c", "temperature_derate_factor",
