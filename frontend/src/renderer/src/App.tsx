@@ -13,6 +13,8 @@ import { DEFAULT_DASHBOARD_PREFERENCES, loadDashboardPreferences, saveDashboardP
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { EnergyMapPage } from "./pages/EnergyMapPage";
 import { AboutPage } from "./pages/AboutPage";
+import { ComparisonPage } from "./pages/ComparisonPage";
+import { loadSavedScenarios, saveScenario, type SavedScenario } from "./saved-scenarios";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { applyTheme, loadTheme, saveTheme, type ThemeName } from "./theme";
 import { loadDisplayName, saveDisplayName } from "./profile";
@@ -23,6 +25,7 @@ export default function App() {
   const [displayName, setDisplayName] = useState(loadDisplayName);
   const [profileSaved, setProfileSaved] = useState(true);
   const [report, setReport] = useState<GridMindScenarioReport | null>(null);
+  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>(loadSavedScenarios);
   const [reportSource, setReportSource] = useState<"synthetic" | "custom" | null>(null);
   const [reportScenarioValues, setReportScenarioValues] = useState<ScenarioFormValues | null>(null);
   const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);
@@ -120,6 +123,16 @@ export default function App() {
     }
   }
 
+  function saveCurrentComparison(name: string): string | null {
+    if (!report) return "Run a scenario before saving it for comparison.";
+    try {
+      setSavedScenarios(saveScenario(report, name));
+      return null;
+    } catch (reason) {
+      return reason instanceof Error ? reason.message : "The scenario could not be saved.";
+    }
+  }
+
   function updateDashboardPreferences(preferences: DashboardPreferences): void {
     setDashboardPreferences(preferences);
     setPreferencesSaved(saveDashboardPreferences(preferences));
@@ -189,8 +202,10 @@ export default function App() {
                   onRunSensitivity={(payload) => { void runSensitivity(payload); }}
                 />
                 : activePage === "reports"
-                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} />
-                  : activePage === "energy-map"
+                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} onSaveComparison={saveCurrentComparison} />
+                  : activePage === "comparison"
+                    ? <ComparisonPage scenarios={savedScenarios} onScenariosChange={setSavedScenarios} />
+                    : activePage === "energy-map"
                     ? <EnergyMapPage />
                     : activePage === "settings"
                       ? <PreferencesPage
