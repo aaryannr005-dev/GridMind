@@ -46,7 +46,8 @@ class _SameHostHttpsRedirectHandler(HTTPRedirectHandler):
     """Permit redirects only to HTTPS URLs on the registered storage host."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        resolved_url = urljoin(req.full_url, newurl)\n        parsed = urlparse(resolved_url)
+        resolved_url = urljoin(req.full_url, newurl)
+        parsed = urlparse(resolved_url)
         if parsed.scheme != "https" or parsed.hostname != _ALLOWED_HOST:
             raise PublicDataDownloadError("dataset redirect left the approved HTTPS source host")
         if parsed.username or parsed.password or parsed.port not in (None, 443):
