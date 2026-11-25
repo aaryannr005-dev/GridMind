@@ -19,7 +19,7 @@ interface ReportsPageProps {
   onDeleteComparison: (id: string) => void;
 }
 
-function csvCell(value: string | number | null | undefined): string {
+function csvCell(value: string | number | boolean | null | undefined): string {
   const text = value == null ? "" : String(value);
   return /[",\r\n]/.test(text) ? '"' + text.replaceAll('"', '""') + '"' : text;
 }
@@ -56,7 +56,7 @@ function exportCsv(report: GridMindScenarioReport): void {
       ...(gridmind ? intervalValues("gridmind", gridmind).map(([, value]) => value) : []),
     ];
   });
-  const summary = [
+  const summary: [string, string | number | boolean | null | undefined][] = [
     ["report_type", "GridMind modeled scenario report"],
     ["scenario_fingerprint", report.scenario_fingerprint],
     ["period_start_myt", report.period_start],
