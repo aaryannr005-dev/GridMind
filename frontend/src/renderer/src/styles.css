@@ -284,7 +284,7 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
 .feedback-icon { display: grid; width: 20px; height: 20px; flex: 0 0 20px; place-items: center; border: 1px solid var(--accent-line); border-radius: 50%; color: var(--accent); font: 600 11px var(--mono); background: transparent; }
 .feedback-warning .feedback-icon { border-color: color-mix(in srgb, var(--warn) 45%, transparent); color: var(--warn); }
 .feedback strong { color: var(--text); font-size: 12.5px; }
-.feedback p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.feedback-message { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 10px; padding-top: 2px; }
 .section-heading h2 { margin: 6px 0 0; font: 600 17px var(--font-display); letter-spacing: -.2px; color: var(--text-strong); }
 .subtle-label { color: var(--faint); font: 10px var(--mono); letter-spacing: .4px; }
