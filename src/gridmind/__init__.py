@@ -1,5 +1,6 @@
 """GridMind input models, simulation, optimization, metrics, reports, and public data."""
 
+from .forecasting import ForecastEvaluation, ForecastMethod, ForecastResult, evaluate_forecast, forecast_series
 from .models import (
     BatteryConfig, DemandSeries, GridConfig, GridMindConfig, InputData,
     PvConfig, SolarSeries, TariffSeries, TimeSeriesPoint,
@@ -37,6 +38,7 @@ from .public_data import (
 
 __all__ = [
     "BatteryConfig", "DemandSeries", "GridConfig", "GridMindConfig", "InputData",
+    "ForecastEvaluation", "ForecastMethod", "ForecastResult", "evaluate_forecast", "forecast_series",
     "IntervalResult", "OptimizationConfig", "OptimizationResult",
     "OptimizedInterval", "PvConfig", "SimulationResult", "SolarSeries", "TariffSeries",
     "SimulationMetrics", "StrategyComparison", "TimeSeriesPoint",
