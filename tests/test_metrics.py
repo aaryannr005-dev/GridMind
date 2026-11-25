@@ -166,6 +166,26 @@ class MetricsFidelityTests(unittest.TestCase):
         self.assertAlmostEqual(metrics.solar_self_consumption_kwh, 0.0)
 
 
+    def test_negative_import_and_export_tariffs_are_accounted_for_with_correct_signs(self):
+        config = GridMindConfig(BatteryConfig(1, 0, 0))
+        inputs = InputData(
+            DemandSeries(points((1, 0))),
+            SolarSeries(points((0, 1))),
+            TariffSeries(points((-0.2, 0.0)), points((0.0, -0.1))),
+        )
+        result = simulate(config, inputs)
+        metrics = calculate_metrics(result, config, inputs)
+
+        self.assertAlmostEqual(metrics.grid_import_kwh, 1.0)
+        self.assertAlmostEqual(metrics.grid_export_kwh, 1.0)
+        self.assertAlmostEqual(metrics.import_cost, -0.2)
+        self.assertAlmostEqual(metrics.export_credit, -0.1)
+        self.assertAlmostEqual(metrics.net_cost, -0.1)
+        self.assertTrue(metrics.energy_balance_valid)
+        self.assertTrue(metrics.grid_constraints_valid)
+        self.assertTrue(metrics.tariff_costs_valid)
+
+
     def test_baseline_and_optimizer_remain_consistent_under_combined_constraints(self):
         interval = timedelta(minutes=30)
         timestamps = tuple(START + index * interval for index in range(4))
