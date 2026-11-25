@@ -141,6 +141,9 @@ export function EnergyMapPage() {
 
       <section className="results-section energy-map-source" aria-labelledby="official-map-title">
         <div className="section-heading"><div><span className="eyebrow">PRIMARY SOURCE · ENERGY COMMISSION</span><h2 id="official-map-title">Electricity supply industry maps</h2></div><span className="subtle-label">AS OF 31 DEC 2021</span></div>
+        <FeedbackState kind="warning" title="Historical reference, not live grid data">
+          This publication maps electricity infrastructure as of 31 December 2021. It is provided for historical geographic context only and must not be interpreted as a current view of the Malaysian grid.
+        </FeedbackState>
         <p>The publication includes major power-station location maps and electricity transmission-system maps for Peninsular Malaysia, Sabah, and Sarawak. The Energy Commission page lists the publication date as 30 October 2024; the mapped station data is labeled as of 31 December 2021. Some map legends distinguish planned or future lines from existing lines.</p>
         <div className="energy-map-actions">
           <button className="primary-button energy-map-link" type="button" onClick={() => setShowHistoricalMap(true)} disabled={showHistoricalMap}>View the historical map in GridMind</button>
