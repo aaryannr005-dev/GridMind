@@ -593,6 +593,73 @@ class AdvancedOptimizationConstraintTests(unittest.TestCase):
         self.assertTrue(all(interval.battery_charge_from_grid_kwh == 0 for interval in result.intervals))
 
 
+    def test_dispatch_preserves_physical_invariants_with_degraded_battery_and_half_hour_caps(self):
+        interval = timedelta(minutes=30)
+        timestamps = tuple(START + index * interval for index in range(4))
+        def timed_points(values):
+            return tuple(TimeSeriesPoint(timestamp, value) for timestamp, value in zip(timestamps, values))
+
+        config = GridMindConfig(
+            BatteryConfig(
+                capacity_kwh=2.0,
+                max_charge_power_kw=2.0,
+                max_discharge_power_kw=2.0,
+                charge_efficiency=0.9,
+                discharge_efficiency=0.85,
+                initial_soc_kwh=0.75,
+                min_soc_kwh=0.3,
+                state_of_health=0.75,
+            ),
+            interval_minutes=30,
+            grid=GridConfig(max_import_power_kw=3.0, max_export_power_kw=2.0),
+        )
+        data = InputData(
+            DemandSeries(timed_points((0.5, 1.0, 2.0, 0.2))),
+            SolarSeries(timed_points((2.0, 0.0, 0.0, 2.0))),
+            TariffSeries(
+                timed_points((0.2, 0.8, 1.0, 0.1)),
+                timed_points((0.05, 0.05, 0.05, 0.05)),
+            ),
+        )
+        result = optimize_dispatch(
+            config,
+            data,
+            OptimizationConfig(soc_step_kwh=0.15, terminal_soc_kwh=0.75),
+        )
+
+        battery = config.battery
+        previous_soc = battery.initial_soc_kwh
+        interval_hours = config.interval_minutes / 60
+        for item in result.intervals:
+            with self.subTest(timestamp=item.timestamp):
+                self.assertGreaterEqual(item.state_of_charge_kwh + 1e-9, battery.min_soc_kwh)
+                self.assertLessEqual(item.state_of_charge_kwh, battery.max_soc_kwh + 1e-9)
+                self.assertLessEqual(item.battery_charge_kwh, battery.max_charge_power_kw * interval_hours + 1e-9)
+                self.assertLessEqual(item.battery_discharge_kwh, battery.max_discharge_power_kw * interval_hours + 1e-9)
+                self.assertLessEqual(item.grid_import_kwh, config.grid.max_import_power_kw * interval_hours + 1e-9)
+                self.assertLessEqual(item.grid_export_kwh, config.grid.max_export_power_kw * interval_hours + 1e-9)
+                self.assertAlmostEqual(
+                    item.demand_kwh,
+                    item.solar_to_load_kwh + item.battery_discharge_kwh
+                    + item.grid_import_kwh - item.battery_charge_from_grid_kwh,
+                    places=8,
+                )
+                self.assertAlmostEqual(
+                    item.solar_generation_kwh,
+                    item.solar_to_load_kwh + item.battery_charge_from_solar_kwh
+                    + item.grid_export_kwh + item.solar_curtailment_kwh,
+                    places=8,
+                )
+                self.assertAlmostEqual(
+                    item.state_of_charge_kwh,
+                    previous_soc + item.battery_charge_kwh * battery.charge_efficiency
+                    - item.battery_discharge_kwh / battery.discharge_efficiency,
+                    places=8,
+                )
+                previous_soc = item.state_of_charge_kwh
+        self.assertAlmostEqual(result.terminal_soc_kwh, 0.75)
+
+
 if __name__ == "__main__":
     unittest.main()
 
