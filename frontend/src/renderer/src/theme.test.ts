@@ -17,15 +17,21 @@ describe("theme utilities", () => {
     expect(loadTheme()).toBe("dark");
   });
 
-  it("falls back to dark when nothing is stored", () => {
+  it("falls back to light when nothing is stored", () => {
     window.localStorage.removeItem("gridmind.theme.v1");
-    expect(loadTheme()).toBe("dark");
+    expect(loadTheme()).toBe("light");
+  });
+
+  it("uses the light theme when stored data is invalid", () => {
+    window.localStorage.setItem("gridmind.theme.v1", "plaid");
+    expect(loadTheme()).toBe("light");
   });
 
   it("maps unknown values to the default theme", () => {
-    expect(parseTheme("plaid")).toBe("dark");
-    expect(parseTheme(null)).toBe("dark");
+    expect(parseTheme("plaid")).toBe("light");
+    expect(parseTheme(null)).toBe("light");
     expect(parseTheme("light")).toBe("light");
+    expect(parseTheme("dark")).toBe("dark");
   });
 
   it("returns the opposite theme when switching", () => {
