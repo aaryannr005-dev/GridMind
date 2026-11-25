@@ -94,6 +94,21 @@ class PublicDataAcquisitionTests(TestCase):
                 request, None, 302, "Found", {}, "https://example.com/steal.csv"
             )
 
+    def test_redirect_handler_rejects_http_downgrade(self):
+        request = Request("https://storage.data.gov.my/energy/source.csv")
+        with self.assertRaisesRegex(PublicDataDownloadError, "approved HTTPS source host"):
+            _SameHostHttpsRedirectHandler().redirect_request(
+                request, None, 302, "Found", {}, "http://storage.data.gov.my/energy/new.csv"
+            )
+
+    @patch("gridmind.public_data_acquisition.build_opener")
+    def test_wraps_network_timeout(self, build_opener_mock):
+        opener = MagicMock()
+        opener.open.side_effect = TimeoutError("timed out")
+        build_opener_mock.return_value = opener
+        with self.assertRaisesRegex(PublicDataDownloadError, "download failed"):
+            download_open_dosm_csv(ELECTRICITY_CONSUMPTION)
+
     def test_rejects_unregistered_dataset_and_invalid_limits(self):
         with self.assertRaisesRegex(ValueError, "registered"):
             download_open_dosm_csv(object())
