@@ -86,16 +86,16 @@ const report = {
   charts: [],
 } as GridMindScenarioReport;
 
-const runHourlyScenario = vi.fn();
+const runHourlyScenario = vi.fn();\nconst runSensitivityAnalysis = vi.fn();
 
 beforeEach(() => {
   window.localStorage.clear();
   window.localStorage.setItem("gridmind.profile.name.v1", "Test User");
   runHourlyScenario.mockReset();
-  runHourlyScenario.mockResolvedValue(report);
+  runHourlyScenario.mockResolvedValue(report);\n  runSensitivityAnalysis.mockReset();\n  runSensitivityAnalysis.mockResolvedValue({\n    parameter: "demand", metric: "net_cost", currency: "MYR", baseline_value: 1.85,\n    points: [0.5, 0.75, 1, 1.25, 1.5].map((multiplier) => ({\n      multiplier, metric_value: 1.85 * multiplier, absolute_change: 1.85 * (multiplier - 1),\n      percentage_change: (multiplier - 1) * 100, feasible: true, error: null,\n    })),\n  });
   Object.defineProperty(window, "gridmindDesktop", {
     configurable: true,
-    value: { platform: "linux", runHourlyScenario },
+    value: { platform: "linux", runHourlyScenario, runSensitivityAnalysis },
   });
 });
 
@@ -532,4 +532,23 @@ describe("GridMind desktop shell", () => {
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:gridmind-report");
   });
 
+});
+
+describe("GridMind sensitivity analysis", () => {
+  it("runs the engine sensitivity operation from the Simulation Lab and renders returned points", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Run sensitivity sweep" }));
+
+    await waitFor(() => expect(runSensitivityAnalysis).toHaveBeenCalledWith(expect.objectContaining({
+      parameter: "demand",
+      metric: "net_cost",
+      strategy: "gridmind",
+      multipliers: [0.5, 0.75, 1, 1.25, 1.5],
+      scenario: expect.objectContaining({ start_date: "2026-01-15", currency: "MYR" }),
+    })));
+    expect(await screen.findByText("1.85 MYR")).toBeInTheDocument();
+    expect(screen.getByText("50%")).toBeInTheDocument();
+    expect(screen.getByText("150%")).toBeInTheDocument();
+  });
 });
