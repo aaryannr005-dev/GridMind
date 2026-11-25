@@ -1,4 +1,6 @@
-import type { GridMindScenarioReport, EngineInterval } from "../../../shared/protocol";
+import { useState } from "react";
+import type { GridMindScenarioReport, EngineInterval, RunHourlyScenarioPayload } from "../../../shared/protocol";
+import { validateScenarioForm } from "../scenario-form";
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
 import type { ScenarioFormValues } from "../scenario-form";
@@ -10,6 +12,7 @@ interface ReportsPageProps {
   scenarioSnapshot: ScenarioFormValues | null;
   resultsAreStale: boolean;
   onOpenSimulation: () => void;
+  onRunSensitivityScenario: (payload: RunHourlyScenarioPayload) => Promise<GridMindScenarioReport>;
 }
 
 function csvCell(value: string | number | null | undefined): string {
@@ -167,7 +170,119 @@ function ReportVisualAnalytics({ report }: { report: GridMindScenarioReport }) {
   );
 }
 
-export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale, onOpenSimulation }: ReportsPageProps) {
+type SensitivityParameter = "demand_kwh" | "solar_generation_kwh" | "import_rate_per_kwh" | "export_rate_per_kwh";
+type SensitivityMetric = "net_cost" | "grid_import_kwh" | "grid_export_kwh" | "solar_self_consumption_ratio";
+interface SensitivityResult { multiplier: number; value: number | null; changePercent: number | null; error?: string; }
+
+function ReportSensitivity({
+  report, scenarioSnapshot, onRunScenario,
+}: {
+  report: GridMindScenarioReport;
+  scenarioSnapshot: ScenarioFormValues | null;
+  onRunScenario: (payload: RunHourlyScenarioPayload) => Promise<GridMindScenarioReport>;
+}) {
+  const [parameter, setParameter] = useState<SensitivityParameter>("demand_kwh");
+  const [metric, setMetric] = useState<SensitivityMetric>("net_cost");
+  const [results, setResults] = useState<SensitivityResult[] | null>(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const multipliers = [0.8, 0.9, 1, 1.1, 1.2];
+  const baselineMetrics = report.gridmind ?? report.baseline;
+  const baselineValue = baselineMetrics[metric];
+  const currencyMetric = metric === "net_cost";
+  const metricLabel = {
+    net_cost: "Estimated net cost",
+    grid_import_kwh: "Grid imports",
+    grid_export_kwh: "Grid exports",
+    solar_self_consumption_ratio: "Solar self-consumption",
+  }[metric];
+
+  async function runSweep(): Promise<void> {
+    if (!scenarioSnapshot) return;
+    const validation = validateScenarioForm(scenarioSnapshot);
+    if (!validation.ok) {
+      setError("The saved scenario inputs are invalid. Rerun the scenario before analysing sensitivity.");
+      return;
+    }
+    setRunning(true);
+    setError(null);
+    setResults(null);
+    const next: SensitivityResult[] = [];
+    try {
+      for (const multiplier of multipliers) {
+        if (multiplier === 1) {
+          next.push({ multiplier, value: baselineValue, changePercent: 0 });
+          continue;
+        }
+        const values = [...validation.payload[parameter]];
+        const scaled = values.map((value) => value * multiplier);
+        const payload = { ...validation.payload, [parameter]: scaled } as RunHourlyScenarioPayload;
+        try {
+          const scenario = await onRunScenario(payload);
+          const metrics = scenario.gridmind ?? scenario.baseline;
+          const value = metrics[metric];
+          next.push({
+            multiplier,
+            value,
+            changePercent: baselineValue !== 0 ? ((value - baselineValue) / Math.abs(baselineValue)) * 100 : null,
+          });
+        } catch (reason) {
+          next.push({ multiplier, value: null, changePercent: null,
+            error: reason instanceof Error ? reason.message : "Scenario could not be evaluated" });
+        }
+      }
+      setResults(next);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <section className="results-section report-sensitivity" aria-labelledby="sensitivity-title">
+      <div className="section-heading">
+        <div><span className="eyebrow">WHAT-IF ANALYSIS</span><h2 id="sensitivity-title">Scenario sensitivity</h2></div>
+        <span className="subtle-label">ONE INPUT AT A TIME</span>
+      </div>
+      <p className="report-sensitivity-intro">Test how changing one assumption affects the modelled outcome. Each point reruns the local engine with the same battery, grid and operating constraints.</p>
+      <div className="report-sensitivity-controls">
+        <label>Input to vary
+          <select value={parameter} onChange={(event) => setParameter(event.target.value as SensitivityParameter)}>
+            <option value="demand_kwh">Household demand</option>
+            <option value="solar_generation_kwh">Solar generation</option>
+            <option value="import_rate_per_kwh">Import tariff</option>
+            <option value="export_rate_per_kwh">Export tariff</option>
+          </select>
+        </label>
+        <label>Outcome metric
+          <select value={metric} onChange={(event) => setMetric(event.target.value as SensitivityMetric)}>
+            <option value="net_cost">Estimated net cost</option>
+            <option value="grid_import_kwh">Grid imports</option>
+            <option value="grid_export_kwh">Grid exports</option>
+            <option value="solar_self_consumption_ratio">Solar self-consumption ratio</option>
+          </select>
+        </label>
+        <button className="primary-button" type="button" disabled={running || !scenarioSnapshot} onClick={() => void runSweep()}>
+          {running ? "Running scenarios…" : "Run sensitivity sweep"}
+        </button>
+      </div>
+      {error && <p className="report-sensitivity-error" role="alert">{error}</p>}
+      {results && <div className="report-sensitivity-results" aria-live="polite">
+        <div className="report-sensitivity-summary"><strong>{metricLabel}</strong><span>Baseline: {format(baselineValue, metric === "solar_self_consumption_ratio" ? 3 : 2)}{currencyMetric ? " " + report.currency : metric === "solar_self_consumption_ratio" ? " ratio" : " kWh"}</span></div>
+        <div className="report-dispatch-table">
+          <div className="report-dispatch-head"><span>Input level</span><span>Outcome</span><span>Change</span></div>
+          {results.map((point) => <div className="report-dispatch-row" key={point.multiplier}>
+            <span>{Math.round(point.multiplier * 100)}% of baseline</span>
+            <strong>{point.error ? "Infeasible" : point.value === null ? "N/A" : format(point.value, metric === "solar_self_consumption_ratio" ? 3 : 2) + (currencyMetric ? " " + report.currency : metric === "solar_self_consumption_ratio" ? "" : " kWh")}</strong>
+            <strong>{point.error ? "—" : point.changePercent === null ? "—" : (point.changePercent > 0 ? "+" : "") + point.changePercent.toFixed(1) + "%"}</strong>
+          </div>)}
+        </div>
+        <p className="report-analytics-footnote">One-at-a-time deterministic scenarios, not probability forecasts. Percentage changes compare with the completed report. A failed scenario is retained as an infeasible point.</p>
+      </div>}
+    </section>
+  );
+}
+
+export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale, onOpenSimulation, onRunSensitivityScenario }: ReportsPageProps) {
   return (
     <div className="page-stack reports-page">
       <div className="page-intro report-page-intro">
@@ -225,6 +340,7 @@ export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale,
             </div>
           </section>
           <ReportVisualAnalytics report={report} />
+          <ReportSensitivity report={report} scenarioSnapshot={scenarioSnapshot} onRunScenario={onRunSensitivityScenario} />
           <ScenarioResults report={report} source={source} />
           <section className="results-section report-validation">
             <div className="section-heading"><div><span className="eyebrow">ENGINE CHECKS</span><h2>Model integrity</h2></div></div>
