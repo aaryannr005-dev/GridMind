@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GridMindScenarioReport } from "../../shared/protocol";
 import App from "./App";
-import { COMPARISON_STORAGE_KEY } from "./scenario-comparisons";
+import { COMPARISON_STORAGE_KEY, createScenarioComparison, saveScenarioComparisons } from "./scenario-comparisons";
 
 const metrics = {
   currency: "MYR",
@@ -529,6 +529,29 @@ describe("GridMind desktop shell", () => {
     expect(screen.queryByText(/Local Python engine unavailable/)).not.toBeInTheDocument();
   });
 
+  it("compares saved scenarios against a selectable reference with signed metric deltas", () => {
+    const reference = createScenarioComparison(report, "custom", null, "Reference run");
+    const comparisonReport = {
+      ...report,
+      gridmind: { ...report.gridmind!, net_cost: 0.9, grid_import_kwh: 4, solar_self_consumption_ratio: 0.9 },
+      comparison: { ...report.comparison!, cost_savings: 0.95 },
+    };
+    const alternative = createScenarioComparison(comparisonReport, "custom", null, "Higher solar");
+    expect(saveScenarioComparisons([reference, alternative])).toBe(true);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    const referenceSelect = screen.getByRole("combobox", { name: "Compare changes against" });
+    expect(referenceSelect).toHaveValue(reference.id);
+    expect(screen.getByText("−0.30 MYR")).toBeInTheDocument();
+    expect(screen.getByText("−2.00 kWh")).toBeInTheDocument();
+    expect(screen.getByText("+10.0 pp")).toBeInTheDocument();
+
+    fireEvent.change(referenceSelect, { target: { value: alternative.id } });
+    expect(screen.getByText("+0.30 MYR")).toBeInTheDocument();
+  });
+
   it("saves completed engine reports as local comparison snapshots and supports removal", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
@@ -538,7 +561,7 @@ describe("GridMind desktop shell", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Name this completed run" }), { target: { value: "Reference run" } });
     fireEvent.click(screen.getByRole("button", { name: "Save comparison snapshot" }));
 
-    expect(await screen.findByText("Reference run")).toBeInTheDocument();
+    expect((await screen.findAllByText("Reference run")).length).toBeGreaterThan(0);
     const stored = JSON.parse(window.localStorage.getItem(COMPARISON_STORAGE_KEY) ?? "[]") as Array<{ name: string; baseline: { netCost: number } }>;
     expect(stored).toHaveLength(1);
     expect(stored[0].name).toBe("Reference run");
