@@ -1,4 +1,5 @@
 from hashlib import sha256
+from http.client import IncompleteRead
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from urllib.request import Request
@@ -128,3 +129,14 @@ class PublicDataAcquisitionTests(TestCase):
             download_open_dosm_csv(ELECTRICITY_CONSUMPTION, max_bytes=20)
 
         response.read.assert_called_once_with(21)
+
+    @patch("gridmind.public_data_acquisition.build_opener")
+    def test_wraps_http_incomplete_read(self, build_opener_mock):
+        response = self.make_response(b"")
+        response.read.side_effect = IncompleteRead(b"short", 5)
+        opener = MagicMock()
+        opener.open.return_value = response
+        build_opener_mock.return_value = opener
+
+        with self.assertRaisesRegex(PublicDataDownloadError, "ended before the declared Content-Length"):
+            download_open_dosm_csv(ELECTRICITY_CONSUMPTION)
