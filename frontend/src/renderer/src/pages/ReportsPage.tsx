@@ -211,7 +211,7 @@ function ReportSensitivity({
     try {
       for (const multiplier of multipliers) {
         if (multiplier === 1) {
-          next.push({ multiplier, value: baselineValue, changePercent: 0 });
+          next.push({ multiplier, value: baselineValue, changePercent: typeof baselineValue === "number" ? 0 : null });
           continue;
         }
         const values = [...validation.payload[parameter]];
@@ -247,7 +247,7 @@ function ReportSensitivity({
       <p className="report-sensitivity-intro">Test how changing one assumption affects the modelled outcome. Each point reruns the local engine with the same battery, grid and operating constraints.</p>
       <div className="report-sensitivity-controls">
         <label>Input to vary
-          <select value={parameter} onChange={(event) => setParameter(event.target.value as SensitivityParameter)}>
+          <select value={parameter} onChange={(event) => { setParameter(event.target.value as SensitivityParameter); setResults(null); }}>
             <option value="demand_kwh">Household demand</option>
             <option value="solar_generation_kwh">Solar generation</option>
             <option value="import_rate_per_kwh">Import tariff</option>
@@ -255,7 +255,7 @@ function ReportSensitivity({
           </select>
         </label>
         <label>Outcome metric
-          <select value={metric} onChange={(event) => setMetric(event.target.value as SensitivityMetric)}>
+          <select value={metric} onChange={(event) => { setMetric(event.target.value as SensitivityMetric); setResults(null); }}>
             <option value="net_cost">Estimated net cost</option>
             <option value="grid_import_kwh">Grid imports</option>
             <option value="grid_export_kwh">Grid exports</option>
