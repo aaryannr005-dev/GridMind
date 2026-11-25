@@ -83,7 +83,7 @@ export function ScenarioResults({ report, source, preferences = DEFAULT_DASHBOAR
 }
 
 export function HomePage({
-  report, reportSource, isRunning, error, onRunDemo, onRunScenario, dashboardPreferences,
+  displayName, report, reportSource, isRunning, error, onRunDemo, onRunScenario, dashboardPreferences,
   scenarioValues, onValuesChange,
   playhead, onPlayheadChange, playing, onPlayingChange, speed, onSpeedChange, strategy, onStrategyChange,
 }: HomePageProps) {
