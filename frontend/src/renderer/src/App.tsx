@@ -127,7 +127,7 @@ export default function App() {
                 reportTariffs={reportTariffs}
                 isRunning={isRunning}
                 error={error}
-                onRunDemo={() => { void runScenario(demoScenario, "synthetic", scenarioValues); }}
+                onRunDemo={() => { void runScenario(demoScenario, "synthetic", createInitialScenarioValues()); }}
                 onRunScenario={(payload, snapshot) => { void runScenario(payload, "custom", snapshot); }}
                 dashboardPreferences={dashboardPreferences}
                 scenarioValues={scenarioValues}
