@@ -100,6 +100,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
   Reflect.deleteProperty(window, "gridmindDesktop");
 });
 
@@ -485,6 +487,44 @@ describe("GridMind desktop shell", () => {
 
     expect(screen.getByText(/Exported files will preserve these completed results/)).toBeInTheDocument();
     expect(screen.getByText("+0.65 MYR")).toBeInTheDocument();
+  });
+
+
+  it("provides a keyboard-accessible skip link to the main workspace", () => {
+    render(<App />);
+    const skipLink = screen.getByRole("link", { name: "Skip to main content" });
+    expect(skipLink).toHaveAttribute("href", "#main-content");
+    expect(document.getElementById("main-content")).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("clears an old engine error when the user edits scenario inputs", async () => {
+    runHourlyScenario.mockRejectedValueOnce(new Error("Local Python engine unavailable"));
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    expect(await screen.findByText(/Local Python engine unavailable/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "0.7" } });
+    expect(screen.queryByText(/Local Python engine unavailable/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the CSV object URL alive briefly after starting the download", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    const createObjectURL = vi.fn().mockReturnValue("blob:gridmind-report");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    vi.useFakeTimers();
+
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:gridmind-report");
   });
 
 });
