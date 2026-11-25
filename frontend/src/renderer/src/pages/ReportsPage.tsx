@@ -160,10 +160,15 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
   onDelete: (id: string) => void;
 }) {
   const [name, setName] = useState("");
+  const [referenceId, setReferenceId] = useState("");
+  const reference = savedComparisons.find((item) => item.id === referenceId) ?? savedComparisons[0] ?? null;
   const money = (value: number | null, currency: string) => value === null ? "—" : value.toFixed(2) + " " + currency;
   const kwh = (value: number | null) => value === null ? "—" : value.toFixed(2) + " kWh";
   const tariff = (value: number | null, currency: string) => value === null ? "—" : value.toFixed(3) + " " + currency + "/kWh";
   const limit = (value: number | null) => value === null ? "Unlimited" : value.toFixed(2) + " kW";
+  const deltaMoney = (value: number | null, baseline: number | null, currency: string) => value === null || baseline === null ? "—" : (value - baseline > 0 ? "+" : value - baseline < 0 ? "−" : "") + Math.abs(value - baseline).toFixed(2) + " " + currency;
+  const deltaKwh = (value: number | null, baseline: number | null) => value === null || baseline === null ? "—" : (value - baseline > 0 ? "+" : value - baseline < 0 ? "−" : "") + Math.abs(value - baseline).toFixed(2) + " kWh";
+  const deltaRatio = (value: number | null, baseline: number | null) => value === null || baseline === null ? "—" : (value - baseline > 0 ? "+" : value - baseline < 0 ? "−" : "") + Math.abs((value - baseline) * 100).toFixed(1) + " pp";
   const dateLabel = (value: string) => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
@@ -190,17 +195,43 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
       {savedComparisons.length === 0 ? (
         <div className="comparison-library-empty"><strong>No saved scenarios yet</strong><span>Run a scenario, then save it here. Save a second run to compare outcomes side by side.</span></div>
       ) : <>
-        {savedComparisons.length === 1 && <p className="form-help">Save at least one more run to make a side-by-side comparison.</p>}
+        {savedComparisons.length > 1 && <div className="scenario-comparison-reference">
+          <label htmlFor="scenario-comparison-reference">Compare changes against</label>
+          <select id="scenario-comparison-reference" value={reference?.id ?? ""} onChange={(event) => setReferenceId(event.target.value)}>
+            {savedComparisons.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+          <span>All deltas below are current scenario minus the selected reference.</span>
+        </div>}
+        <div className="comparison-insight-grid">
+          {[
+            { title: "GridMind net tariff cost", metric: (item: SavedScenarioComparison) => item.gridmind?.netCost ?? null, max: Math.max(0.000001, ...savedComparisons.map((item) => Math.abs(item.gridmind?.netCost ?? 0))), format: (value: number) => money(value, savedComparisons[0].currency) },
+            { title: "GridMind grid imports", metric: (item: SavedScenarioComparison) => item.gridmind?.gridImportKwh ?? null, max: Math.max(0.000001, ...savedComparisons.map((item) => Math.abs(item.gridmind?.gridImportKwh ?? 0))), format: (value: number) => kwh(value) },
+          ].map((chart) => <div className="comparison-insight-card" key={chart.title}>
+            <h3>{chart.title}</h3>
+            {savedComparisons.map((item) => {
+              const value = chart.metric(item);
+              return <div className="comparison-insight-row" key={item.id}>
+                <span>{item.name}</span><div className="comparison-insight-track"><span style={{ width: value === null ? "0%" : Math.max(2, Math.abs(value) / chart.max * 100) + "%" }} /></div>
+                <strong>{value === null ? "—" : chart.format(value)}</strong>
+              </div>;
+            })}
+          </div>)}
+        </div>
+        <p className="form-help">Bar lengths show absolute magnitudes. Signed differences are shown in the table; a negative cost or import delta means a lower modeled value than the reference.</p>
         <div className="scenario-comparison-table-wrap">
           <table className="scenario-comparison-table">
             <caption>Saved scenario outcomes. Costs are tariff-only modeled values; they are not measured bills.</caption>
-            <thead><tr><th scope="col">Scenario and inputs</th><th scope="col">Baseline cost</th><th scope="col">GridMind cost</th><th scope="col">Modeled savings</th><th scope="col">GridMind imports</th><th scope="col">GridMind exports</th><th scope="col">Self-consumption</th><th scope="col">Actions</th></tr></thead>
-            <tbody>{savedComparisons.map((item) => <tr key={item.id}>
+            <thead><tr><th scope="col">Scenario and inputs</th><th scope="col">Baseline cost</th><th scope="col">GridMind cost</th><th scope="col">Savings</th><th scope="col">Δ net cost</th><th scope="col">GridMind imports</th><th scope="col">Δ imports</th><th scope="col">GridMind exports</th><th scope="col">Self-consumption</th><th scope="col">Δ self-consumption</th><th scope="col">Actions</th></tr></thead>
+            <tbody>{savedComparisons.map((item) => <tr key={item.id} data-reference={item.id === reference?.id}>
               <th scope="row"><strong>{item.name}</strong><small>{dateLabel(item.savedAt)} · {dateLabel(item.periodStart)} · {item.source === "synthetic" ? "Synthetic demo" : "Custom scenario"}</small><small>Demand {kwh(item.demandKwh)} · Solar {kwh(item.solarGenerationKwh)} · Battery {item.batteryCapacityKwh.toFixed(1)} kWh / {(item.batteryStateOfHealth * 100).toFixed(0)}% SoH</small><small>Average tariffs: import {tariff(item.averageImportTariff, item.currency)}, export {tariff(item.averageExportTariff, item.currency)} · Grid limits: import {limit(item.maxImportPowerKw)}, export {limit(item.maxExportPowerKw)}</small></th>
               <td>{money(item.baseline.netCost, item.currency)}</td><td>{money(item.gridmind?.netCost ?? null, item.currency)}</td>
-              <td>{money(item.costSavings, item.currency)}</td><td>{kwh(item.gridmind?.gridImportKwh ?? null)}</td>
+              <td>{money(item.costSavings, item.currency)}</td>
+              <td>{deltaMoney(item.gridmind?.netCost ?? null, reference?.gridmind?.netCost ?? null, item.currency)}</td>
+              <td>{kwh(item.gridmind?.gridImportKwh ?? null)}</td>
+              <td>{deltaKwh(item.gridmind?.gridImportKwh ?? null, reference?.gridmind?.gridImportKwh ?? null)}</td>
               <td>{kwh(item.gridmind?.gridExportKwh ?? null)}</td>
               <td>{item.gridmind?.solarSelfConsumptionRatio === null || !item.gridmind ? "—" : (item.gridmind.solarSelfConsumptionRatio * 100).toFixed(1) + "%"}</td>
+              <td>{deltaRatio(item.gridmind?.solarSelfConsumptionRatio ?? null, reference?.gridmind?.solarSelfConsumptionRatio ?? null)}</td>
               <td><button className="text-action-button" type="button" onClick={() => onDelete(item.id)} aria-label={"Remove " + item.name + " from comparison library"}>Remove</button></td>
             </tr>)}</tbody>
           </table>
