@@ -14,7 +14,7 @@ change relative to the unmodified baseline.
 - Import tariff per kWh
 - Export tariff per kWh, when an export tariff series is supplied
 
-Each dimension is scaled by positive finite multipliers. A multiplier of 1.0
+Each dimension is scaled by nonnegative finite multipliers. A multiplier of 1.0
 represents the baseline input. Multiplier values must be unique.
 
 ## Supported outcome metrics
