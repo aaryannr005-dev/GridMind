@@ -8,6 +8,7 @@ import {
   loadScenarioComparisons,
   MAX_SAVED_COMPARISONS,
   saveScenarioComparisons,
+  type SavedScenarioComparison,
 } from "./scenario-comparisons";
 
 const metrics = {
@@ -55,7 +56,7 @@ describe("scenario comparison storage", () => {
   it("keeps only the newest five snapshots and supports deletion", () => {
     const snapshots = Array.from({ length: MAX_SAVED_COMPARISONS + 2 }, (_, index) =>
       createScenarioComparison(report, "custom", null, "Scenario " + index));
-    const capped = snapshots.reduce(appendScenarioComparison, []);
+    const capped = snapshots.reduce<SavedScenarioComparison[]>(appendScenarioComparison, []);
     expect(capped).toHaveLength(MAX_SAVED_COMPARISONS);
     expect(capped[0].name).toBe("Scenario 2");
     expect(deleteScenarioComparison(capped, capped[0].id)).toHaveLength(MAX_SAVED_COMPARISONS - 1);
