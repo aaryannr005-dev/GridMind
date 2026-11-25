@@ -139,6 +139,7 @@ describe("GridMind desktop shell", () => {
     expect(screen.getByText("Set your assumptions")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
+  });
 
   it("updates the dashboard summary from completed engine output", async () => {
     render(<App />);
@@ -149,7 +150,6 @@ describe("GridMind desktop shell", () => {
     expect(screen.getAllByText("Completed")).toHaveLength(2);
     expect(screen.getAllByText("24 × 60 min")).toHaveLength(2);
     expect(screen.getAllByText("Self-consumption first")).toHaveLength(2);
-  });
   });
 
   it("marks the selected page in the accessible navigation", () => {
