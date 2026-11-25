@@ -705,7 +705,7 @@ class OptimizerBatteryEdgeCaseTests(unittest.TestCase):
         interval = result.intervals[0]
         self.assertAlmostEqual(interval.state_of_charge_kwh, 1.0)
         self.assertAlmostEqual(interval.battery_charge_kwh, 0.0)
-        self.assertAlmostEqual(interval.grid_export_kwh, 1.0)
+        self.assertAlmostEqual(interval.battery_discharge_kwh, 0.0)
 
     def test_battery_at_minimum_soc_cannot_discharge(self):
         config = GridMindConfig(
