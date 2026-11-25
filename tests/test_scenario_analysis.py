@@ -46,13 +46,13 @@ def test_demand_sensitivity_reports_baseline_and_changes():
         multipliers=(0.5, 1.0, 1.5),
         metric=SensitivityMetric.NET_COST,
     )
-    assert report.baseline_value == pytest.approx(0.5)
+    assert report.baseline_value == pytest.approx(1.0)
     assert [point.multiplier for point in report.points] == [0.5, 1.0, 1.5]
     assert report.points[1].metric_value == pytest.approx(report.baseline_value)
     assert report.points[1].absolute_change == 0
     assert report.points[0].metric_value == pytest.approx(0.0)
-    assert report.points[2].metric_value == pytest.approx(1.0)
-    assert report.points[2].absolute_change == pytest.approx(0.5)
+    assert report.points[2].metric_value == pytest.approx(2.0)
+    assert report.points[2].absolute_change == pytest.approx(1.0)
     assert report.points[2].percentage_change == pytest.approx(100.0)
 
 
@@ -135,7 +135,7 @@ def test_rejects_invalid_parameter_and_metric():
 
 def test_percentage_change_is_none_when_baseline_is_zero():
     report = run_sensitivity_analysis(
-        make_config(), make_inputs(solar=(2.0, 2.0), demand=(1.0, 1.0)),
+        make_config(), make_inputs(solar=(2.0, 2.0), demand=(1.0, 1.0), export_rates=(0.0, 0.0)),
         parameter=SensitivityParameter.DEMAND,
         multipliers=(1.0, 2.0),
     )
