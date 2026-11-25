@@ -38,3 +38,29 @@
   .report-chart-panel { break-inside: avoid; box-shadow: none; }
   .report-trend-chart { max-height: 220px; }
 }
+
+
+.report-financial-breakdown { gap: 14px; }
+.report-financial-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.report-financial-summary article { display: grid; gap: 5px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--panel); }
+.report-financial-summary article > span { color: var(--muted); font-size: 10px; }
+.report-financial-summary article > strong { color: var(--text-strong); font: 650 18px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-financial-summary article > small { color: var(--faint); font-size: 9px; line-height: 1.45; }
+.report-financial-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-m); }
+.report-financial-table { width: 100%; min-width: 620px; border-collapse: collapse; }
+.report-financial-table caption { padding: 10px 12px; color: var(--muted); font-size: 10px; text-align: left; }
+.report-financial-table th, .report-financial-table td { padding: 11px 12px; border-top: 1px solid var(--line); text-align: right; font-size: 10px; font-variant-numeric: tabular-nums; }
+.report-financial-table thead th { color: var(--faint); background: var(--panel-soft); font-size: 9px; font-weight: 650; }
+.report-financial-table th:first-child { text-align: left; }
+.report-financial-table tbody th { color: var(--text-strong); font-weight: 600; }
+.report-financial-table tbody td { color: var(--muted); font-family: var(--mono); }
+.report-financial-table tbody tr:last-child { background: var(--panel-soft); }
+.report-financial-table tbody tr:last-child th, .report-financial-table tbody tr:last-child td { color: var(--text-strong); font-weight: 700; }
+.report-financial-footnote, .report-financial-objective-note { margin: 0; color: var(--faint); font-size: 9px; line-height: 1.55; }
+.report-financial-objective-note { padding: 10px 12px; border-left: 2px solid var(--chart-battery); background: var(--panel-soft); color: var(--muted); }
+@media (max-width: 700px) { .report-financial-summary { grid-template-columns: 1fr; } }
+@media print {
+  .report-financial-summary article, .report-financial-table-wrap { break-inside: avoid; box-shadow: none; }
+  .report-financial-table { min-width: 0; }
+  .report-financial-table th, .report-financial-table td { padding: 7px 6px; font-size: 8px; }
+}

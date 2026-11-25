@@ -28,6 +28,8 @@ function intervalValues(prefix: string, interval: EngineInterval | null) {
     [prefix + "_grid_import_kwh", interval.grid_import_kwh],
     [prefix + "_grid_export_kwh", interval.grid_export_kwh],
     [prefix + "_state_of_charge_percent", interval.state_of_charge_percent],
+    [prefix + "_import_cost", interval.import_cost],
+    [prefix + "_export_credit", interval.export_credit],
     [prefix + "_net_cost", interval.net_cost],
   ] as [string, number][];
 }
@@ -54,11 +56,16 @@ function exportCsv(report: GridMindScenarioReport): void {
     ["period_end_myt", report.period_end],
     ["interval_minutes", report.interval_minutes],
     ["currency", report.currency],
+    ["baseline_import_cost", report.baseline.import_cost],
+    ["baseline_export_credit", report.baseline.export_credit],
     ["baseline_net_cost", report.baseline.net_cost],
+    ["gridmind_import_cost", report.gridmind?.import_cost ?? ""],
+    ["gridmind_export_credit", report.gridmind?.export_credit ?? ""],
     ["gridmind_net_cost", report.gridmind?.net_cost ?? ""],
     ["modeled_cost_savings", report.comparison?.cost_savings ?? ""],
     ["baseline_grid_import_kwh", report.baseline.grid_import_kwh],
     ["gridmind_grid_import_kwh", report.gridmind?.grid_import_kwh ?? ""],
+    ["cost_basis", "Net tariff cost = import charges minus export credits; excludes optional battery degradation penalty in optimizer objective"],
     ["note", "Modeled estimates, not measured performance or guaranteed savings"],
   ];
   const content = [
@@ -91,6 +98,51 @@ function seriesPath(values: number[], width: number, height: number, max: number
     const y = height - 28 - (height - 48) * Math.max(0, value) / max;
     return (index === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
   }).join(" ");
+}
+
+function formatMoney(value: number | null | undefined, currency: string): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toFixed(2) + " " + currency
+    : "—";
+}
+
+function FinancialBreakdown({ report }: { report: GridMindScenarioReport }) {
+  const baseline = report.baseline;
+  const optimized = report.gridmind;
+  const rows = [
+    { label: "Import charges", baseline: baseline.import_cost, optimized: optimized?.import_cost ?? null },
+    { label: "Export credits", baseline: baseline.export_credit, optimized: optimized?.export_credit ?? null },
+    { label: "Net tariff cost", baseline: baseline.net_cost, optimized: optimized?.net_cost ?? null },
+  ];
+  const degradationAssumption = report.assumptions.find((item) =>
+    item.includes("dispatch objective includes a battery-degradation penalty totaling"));
+  return (
+    <section className="results-section report-financial-breakdown" aria-labelledby="financial-breakdown-title">
+      <div className="section-heading">
+        <div><span className="eyebrow">FINANCIAL ANALYSIS</span><h2 id="financial-breakdown-title">Tariff cost breakdown</h2></div>
+        <span className="subtle-label">TARIFF-ONLY COSTS</span>
+      </div>
+      <div className="report-financial-summary">
+        <article><span>Baseline tariff bill</span><strong>{formatMoney(baseline.net_cost, report.currency)}</strong><small>Import charges less export credits</small></article>
+        <article><span>GridMind tariff bill</span><strong>{formatMoney(optimized?.net_cost, report.currency)}</strong><small>Approximate cost-optimised dispatch</small></article>
+        <article><span>Modeled tariff savings</span><strong>{formatMoney(report.comparison?.cost_savings, report.currency)}</strong><small>Positive means a lower modeled tariff bill</small></article>
+      </div>
+      <div className="report-financial-table-wrap">
+        <table className="report-financial-table">
+          <caption>Financial components for the completed scenario</caption>
+          <thead><tr><th scope="col">Component</th><th scope="col">Baseline</th><th scope="col">GridMind</th><th scope="col">Change (GridMind − baseline)</th></tr></thead>
+          <tbody>{rows.map((row) => <tr key={row.label}>
+            <th scope="row">{row.label}</th>
+            <td>{formatMoney(row.baseline, report.currency)}</td>
+            <td>{formatMoney(row.optimized, report.currency)}</td>
+            <td>{row.optimized === null ? "—" : formatMoney(row.optimized - row.baseline, report.currency)}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <p className="report-financial-footnote">Net tariff cost is calculated as import charges minus export credits. These figures do not include any optional battery-degradation penalty used by the optimiser.</p>
+      {degradationAssumption && <p className="report-financial-objective-note">{degradationAssumption}</p>}
+    </section>
+  );
 }
 
 function ReportVisualAnalytics({ report }: { report: GridMindScenarioReport }) {
@@ -224,6 +276,7 @@ export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale,
               <article><span>Grid import reduction</span><strong>{format(report.comparison?.grid_import_reduction_kwh)} kWh</strong><small>Baseline imports minus GridMind imports</small></article>
             </div>
           </section>
+          <FinancialBreakdown report={report} />
           <ReportVisualAnalytics report={report} />
           <ScenarioResults report={report} source={source} />
           <section className="results-section report-validation">
