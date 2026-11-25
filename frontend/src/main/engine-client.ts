@@ -4,9 +4,13 @@ import { delimiter, join } from "node:path";
 import {
   decodeEngineResponse,
   isRunHourlyScenarioPayload,
+  isRunSensitivityAnalysisPayload,
+  isSensitivityReport,
   type EngineResponse,
   type GridMindScenarioReport,
   type RunHourlyScenarioPayload,
+  type RunSensitivityAnalysisPayload,
+  type SensitivityReport,
 } from "../shared/protocol";
 
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -28,7 +32,7 @@ interface EngineConfig {
 }
 
 interface PendingRequest {
-  resolve: (report: GridMindScenarioReport) => void;
+  resolve: (result: unknown) => void;
   reject: (error: EngineClientError) => void;
   timeout: NodeJS.Timeout;
 }
@@ -47,10 +51,28 @@ export class EngineClient {
     if (!isRunHourlyScenarioPayload(payload)) {
       return Promise.reject(new EngineClientError("INVALID_REQUEST", "Scenario request has an invalid shape"));
     }
+    return this.sendRequest("run_hourly_scenario", payload).then((result) => {
+      if (!result || typeof result !== "object" || !("scenario_fingerprint" in result)) {
+        throw new EngineClientError("ENGINE_PROTOCOL_ERROR", "The engine returned an invalid scenario report");
+      }
+      return result as GridMindScenarioReport;
+    });
+  }
+
+  runSensitivityAnalysis(payload: RunSensitivityAnalysisPayload): Promise<SensitivityReport> {
+    if (!isRunSensitivityAnalysisPayload(payload)) {
+      return Promise.reject(new EngineClientError("INVALID_REQUEST", "Sensitivity request has an invalid shape"));
+    }
+    return this.sendRequest("run_sensitivity_analysis", payload).then((result) => {
+      if (!isSensitivityReport(result)) throw new EngineClientError("ENGINE_PROTOCOL_ERROR", "The engine returned an invalid sensitivity report");
+      return result;
+    });
+  }
+
+  private sendRequest(operation: string, payload: unknown): Promise<unknown> {
     if (this.pending.size >= MAX_PENDING_REQUESTS) {
       return Promise.reject(new EngineClientError("ENGINE_BUSY", "The engine is handling other scenarios; try again shortly"));
     }
-
     let child: ChildProcessWithoutNullStreams;
     try {
       child = this.ensureProcess();
@@ -61,13 +83,13 @@ export class EngineClient {
       ));
     }
     const id = randomUUID();
-    return new Promise<GridMindScenarioReport>((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(id);
         reject(new EngineClientError("ENGINE_TIMEOUT", "The scenario took too long to complete"));
       }, REQUEST_TIMEOUT_MS);
       this.pending.set(id, { resolve, reject, timeout });
-      const request = JSON.stringify({ id, operation: "run_hourly_scenario", payload });
+      const request = JSON.stringify({ id, operation, payload });
       child.stdin.write(`${request}\n`, "utf8", (error) => {
         if (!error) return;
         this.rejectRequest(id, new EngineClientError("ENGINE_IO_ERROR", "Could not send the scenario to the engine"));

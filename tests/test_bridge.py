@@ -188,5 +188,91 @@ class EngineBridgeTests(unittest.TestCase):
         self.assertIn("grid import exceeds", result["error"]["message"])
 
 
+    def test_sensitivity_operation_returns_deterministic_points(self):
+        request = {
+            "id": "sensitivity-1",
+            "operation": "run_sensitivity_analysis",
+            "payload": {
+                "scenario": scenario_request()["payload"],
+                "parameter": "demand",
+                "multipliers": [0.5, 1.0, 1.5],
+                "metric": "net_cost",
+                "strategy": "baseline",
+            },
+        }
+        result = handle_request(request)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["id"], "sensitivity-1")
+        report = result["result"]
+        self.assertEqual(report["parameter"], "demand")
+        self.assertEqual(report["metric"], "net_cost")
+        self.assertEqual([point["multiplier"] for point in report["points"]], [0.5, 1.0, 1.5])
+        self.assertTrue(all(point["feasible"] for point in report["points"]))
+        self.assertEqual(report["points"][1]["absolute_change"], 0.0)
+
+    def test_sensitivity_retains_infeasible_grid_cap_cases(self):
+        scenario = scenario_request(
+            demand_kwh=[0.75] * 24,
+            grid={"max_import_power_kw": 1.0},
+        )["payload"]
+        request = {
+            "id": "sensitivity-cap",
+            "operation": "run_sensitivity_analysis",
+            "payload": {
+                "scenario": scenario,
+                "parameter": "demand",
+                "multipliers": [0.5, 1.0, 1.5],
+                "metric": "grid_import_kwh",
+                "strategy": "baseline",
+            },
+        }
+        result = handle_request(request)
+        self.assertTrue(result["ok"])
+        points = result["result"]["points"]
+        self.assertTrue(points[0]["feasible"])
+        self.assertTrue(points[1]["feasible"])
+        self.assertFalse(points[2]["feasible"])
+        self.assertIsNone(points[2]["metric_value"])
+        self.assertIn("grid import exceeds", points[2]["error"])
+
+
+    def test_sensitivity_operation_runs_gridmind_optimizer(self):
+        scenario = scenario_request(
+            demand_kwh=[0.75] * 24,
+            solar_generation_kwh=[0.0] * 6 + [0.2] * 12 + [0.0] * 6,
+        )["payload"]
+        request = {
+            "id": "sensitivity-optimizer",
+            "operation": "run_sensitivity_analysis",
+            "payload": {
+                "scenario": scenario,
+                "parameter": "solar_generation",
+                "multipliers": [0.5, 1.0, 1.5],
+                "metric": "net_cost",
+                "strategy": "gridmind",
+            },
+        }
+        result = handle_request(request)
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["result"]["points"]), 3)
+        self.assertTrue(all(point["feasible"] for point in result["result"]["points"]))
+
+    def test_sensitivity_rejects_malformed_parameters(self):
+        request = {
+            "id": "sensitivity-invalid",
+            "operation": "run_sensitivity_analysis",
+            "payload": {
+                "scenario": scenario_request()["payload"],
+                "parameter": {"unexpected": "object"},
+                "multipliers": [0.5, 1.0],
+                "metric": "net_cost",
+                "strategy": "baseline",
+            },
+        }
+        result = handle_request(request)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"]["code"], "INVALID_SCENARIO")
+
+
 if __name__ == "__main__":
     unittest.main()

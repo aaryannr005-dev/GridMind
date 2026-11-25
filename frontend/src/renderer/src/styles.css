@@ -840,3 +840,30 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
   .report-metadata, .report-input-summary, .report-outcome-grid article { box-shadow: none !important; }
   a { color: inherit !important; text-decoration: none !important; }
 }
+
+
+/* ---- Scenario sensitivity ------------------------------------------- */
+.sensitivity-controls { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) auto; align-items: end; gap: 12px; margin: 16px 0 8px; }
+.sensitivity-controls .primary-button { min-height: 38px; white-space: nowrap; }
+.sensitivity-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.sensitivity-summary > div { display: grid; gap: 4px; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--panel-soft); }
+.sensitivity-summary span { color: var(--faint); font: 10px var(--mono); letter-spacing: .5px; }
+.sensitivity-summary strong { color: var(--text-strong); font-size: 14px; overflow-wrap: anywhere; }
+.sensitivity-results { display: grid; gap: 10px; margin: 16px 0 20px; }
+.sensitivity-point { display: grid; grid-template-columns: 52px minmax(80px, 1fr) minmax(110px, auto); align-items: center; gap: 12px; }
+.sensitivity-multiplier { color: var(--muted); font: 11px var(--mono); }
+.sensitivity-track { height: 10px; overflow: hidden; border-radius: 99px; background: var(--engraved); }
+.sensitivity-bar { display: block; height: 100%; border-radius: inherit; background: var(--chart-optimized); }
+.sensitivity-bar.is-infeasible { background: var(--danger); }
+.sensitivity-point strong { color: var(--text-strong); font-size: 12px; text-align: right; }
+.sensitivity-status-ok { color: var(--ok); font-weight: 650; }
+.sensitivity-status-error { color: var(--danger); font-weight: 650; }
+.sensitivity-table { min-width: 680px; }
+@media (max-width: 900px) {
+  .sensitivity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sensitivity-summary { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .sensitivity-controls { grid-template-columns: 1fr; }
+  .sensitivity-point { grid-template-columns: 42px minmax(50px, 1fr) minmax(90px, auto); gap: 8px; }
+}

@@ -1,8 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../shared/protocol";
+import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport } from "../shared/protocol";
 
 contextBridge.exposeInMainWorld("gridmindDesktop", {
   platform: process.platform,
   runHourlyScenario: (payload: RunHourlyScenarioPayload): Promise<GridMindScenarioReport> =>
     ipcRenderer.invoke("gridmind:run-hourly-scenario", payload),
+  runSensitivityAnalysis: (payload: RunSensitivityAnalysisPayload): Promise<SensitivityReport> =>
+    ipcRenderer.invoke("gridmind:run-sensitivity-analysis", payload),
 });

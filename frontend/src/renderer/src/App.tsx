@@ -5,7 +5,7 @@ import { HomePage } from "./pages/HomePage";
 import { getNavigationItem } from "./navigation";
 import type { PageId } from "./types";
 import { demoScenario } from "./demo-scenario";
-import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../../shared/protocol";
+import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport } from "../../shared/protocol";
 import { SimulationLabPage } from "./pages/SimulationLabPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario-form";
@@ -26,6 +26,10 @@ export default function App() {
   const [reportSource, setReportSource] = useState<"synthetic" | "custom" | null>(null);
   const [reportScenarioValues, setReportScenarioValues] = useState<ScenarioFormValues | null>(null);
   const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);
+  const [sensitivityReport, setSensitivityReport] = useState<SensitivityReport | null>(null);
+  const [sensitivityError, setSensitivityError] = useState<string | null>(null);
+  const [isSensitivityRunning, setIsSensitivityRunning] = useState(false);
+  const [sensitivityScenarioSnapshot, setSensitivityScenarioSnapshot] = useState<string | null>(null);
   const [scenarioValues, setScenarioValues] = useState<ScenarioFormValues>(createInitialScenarioValues);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +99,27 @@ export default function App() {
     }
   }
 
+  async function runSensitivity(payload: RunSensitivityAnalysisPayload): Promise<void> {
+    if (!window.gridmindDesktop) {
+      setSensitivityError("The local engine bridge is not available in this app window.");
+      return;
+    }
+    const valuesSnapshot = JSON.stringify(scenarioValues);
+    setIsSensitivityRunning(true);
+    setSensitivityError(null);
+    setSensitivityReport(null);
+    setSensitivityScenarioSnapshot(null);
+    try {
+      const result = await window.gridmindDesktop.runSensitivityAnalysis(payload);
+      setSensitivityReport(result);
+      setSensitivityScenarioSnapshot(valuesSnapshot);
+    } catch (reason) {
+      setSensitivityError(reason instanceof Error ? reason.message : "Sensitivity analysis could not be completed.");
+    } finally {
+      setIsSensitivityRunning(false);
+    }
+  }
+
   function updateDashboardPreferences(preferences: DashboardPreferences): void {
     setDashboardPreferences(preferences);
     setPreferencesSaved(saveDashboardPreferences(preferences));
@@ -157,6 +182,11 @@ export default function App() {
                   onValuesChange={updateScenarioValues}
                   onRun={(payload) => { void runScenario(payload, "custom", scenarioValues); }}
                   onReset={() => updateScenarioValues(createInitialScenarioValues())}
+                  sensitivityReport={sensitivityReport}
+                  sensitivityLoading={isSensitivityRunning}
+                  sensitivityError={sensitivityError}
+                  sensitivityStale={sensitivityScenarioSnapshot !== null && sensitivityScenarioSnapshot !== JSON.stringify(scenarioValues)}
+                  onRunSensitivity={(payload) => { void runSensitivity(payload); }}
                 />
                 : activePage === "reports"
                   ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} />
