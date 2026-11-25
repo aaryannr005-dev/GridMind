@@ -64,3 +64,11 @@
   .report-financial-table { min-width: 0; }
   .report-financial-table th, .report-financial-table td { padding: 7px 6px; font-size: 8px; }
 }
+
+.comparison-save-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 420px); align-items: end; gap: 18px; }
+.comparison-save-panel h2 { margin: 3px 0 5px; }
+.comparison-save-panel p { color: var(--muted); font-size: 12px; margin: 0; }
+.comparison-save-controls { display: flex; align-items: end; gap: 10px; }
+.comparison-save-controls .form-control { flex: 1; }
+.comparison-save-controls input { width: 100%; }
+@media (max-width: 760px) { .comparison-save-panel, .comparison-save-controls { grid-template-columns: 1fr; display: grid; } }
