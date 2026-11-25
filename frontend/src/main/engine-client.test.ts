@@ -112,4 +112,91 @@ describe("EngineClient", () => {
     client.close();
   });
 
+
+  it("matches concurrent responses by request id even when they arrive out of order", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient({
+      appRoot: "/gridmind", resourcesPath: "/gridmind/resources", platform: "linux", packaged: false,
+    }, (() => child as unknown as ChildProcessWithoutNullStreams) as unknown as typeof import("node:child_process").spawn);
+    const lines: string[] = [];
+    child.stdin.on("data", (chunk) => { lines.push(...chunk.toString().trim().split("\n")); });
+
+    const first = client.runHourlyScenario(payload());
+    const second = client.runHourlyScenario(payload());
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const requests = lines.map((line) => JSON.parse(line) as { id: string });
+    expect(requests).toHaveLength(2);
+
+    child.stdout.write(`${JSON.stringify({ id: requests[1].id, ok: true, result: { ...validScenarioReport(), scenario_fingerprint: "second-response" } })}\n`);
+    child.stdout.write(`${JSON.stringify({ id: requests[0].id, ok: true, result: { ...validScenarioReport(), scenario_fingerprint: "first-response" } })}\n`);
+
+    await expect(first).resolves.toMatchObject({ scenario_fingerprint: "first-response" });
+    await expect(second).resolves.toMatchObject({ scenario_fingerprint: "second-response" });
+    client.close();
+  });
+
+  it("rejects all pending requests and stops the process after an unreadable protocol line", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient({
+      appRoot: "/gridmind", resourcesPath: "/gridmind/resources", platform: "linux", packaged: false,
+    }, (() => child as unknown as ChildProcessWithoutNullStreams) as unknown as typeof import("node:child_process").spawn);
+    const first = client.runHourlyScenario(payload());
+    const second = client.runHourlyScenario(payload());
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    child.stdout.write("{not-json}\n");
+
+    await expect(first).rejects.toMatchObject({ code: "ENGINE_PROTOCOL_ERROR" });
+    await expect(second).rejects.toMatchObject({ code: "ENGINE_PROTOCOL_ERROR" });
+    expect(child.kill).toHaveBeenCalledOnce();
+  });
+
+  it("rejects pending work when the engine exits unexpectedly", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient({
+      appRoot: "/gridmind", resourcesPath: "/gridmind/resources", platform: "linux", packaged: false,
+    }, (() => child as unknown as ChildProcessWithoutNullStreams) as unknown as typeof import("node:child_process").spawn);
+    const result = client.runHourlyScenario(payload());
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    child.emit("exit", 2, null);
+
+    await expect(result).rejects.toMatchObject({ code: "ENGINE_EXITED" });
+    expect(child.kill).not.toHaveBeenCalled();
+  });
+
+  it("enforces the pending-request limit without sending an extra request", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient({
+      appRoot: "/gridmind", resourcesPath: "/gridmind/resources", platform: "linux", packaged: false,
+    }, (() => child as unknown as ChildProcessWithoutNullStreams) as unknown as typeof import("node:child_process").spawn);
+    const lines: string[] = [];
+    child.stdin.on("data", (chunk) => { lines.push(...chunk.toString().trim().split("\n")); });
+    const pending = Array.from({ length: 4 }, () => client.runHourlyScenario(payload()));
+    const rejected = client.runHourlyScenario(payload());
+    await expect(rejected).rejects.toMatchObject({ code: "ENGINE_BUSY" });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(lines).toHaveLength(4);
+
+    for (const line of lines) {
+      const request = JSON.parse(line) as { id: string };
+      child.stdout.write(`${JSON.stringify({ id: request.id, ok: true, result: validScenarioReport() })}\n`);
+    }
+    await expect(Promise.all(pending)).resolves.toHaveLength(4);
+    client.close();
+  });
+
+  it("rejects all outstanding requests when the application closes the client", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient({
+      appRoot: "/gridmind", resourcesPath: "/gridmind/resources", platform: "linux", packaged: false,
+    }, (() => child as unknown as ChildProcessWithoutNullStreams) as unknown as typeof import("node:child_process").spawn);
+    const first = client.runHourlyScenario(payload());
+    const second = client.runHourlyScenario(payload());
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    client.close();
+
+    await expect(first).rejects.toMatchObject({ code: "ENGINE_CLOSED" });
+    await expect(second).rejects.toMatchObject({ code: "ENGINE_CLOSED" });
+    expect(child.kill).toHaveBeenCalledOnce();
+  });
+
 });
