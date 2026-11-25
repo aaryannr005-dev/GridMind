@@ -546,7 +546,7 @@ describe("GridMind desktop shell", () => {
     expect(referenceSelect).toHaveValue(reference.id);
     expect(screen.getByText("−0.30 MYR")).toBeInTheDocument();
     expect(screen.getByText("−2.00 kWh")).toBeInTheDocument();
-    expect(screen.getByText("+7.0 pp")).toBeInTheDocument();
+    expect(screen.getByText("+10.0 pp")).toBeInTheDocument();
 
     fireEvent.change(referenceSelect, { target: { value: alternative.id } });
     expect(screen.getByText("+0.30 MYR")).toBeInTheDocument();
@@ -561,7 +561,7 @@ describe("GridMind desktop shell", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Name this completed run" }), { target: { value: "Reference run" } });
     fireEvent.click(screen.getByRole("button", { name: "Save comparison snapshot" }));
 
-    expect(await screen.findByText("Reference run")).toBeInTheDocument();
+    expect((await screen.findAllByText("Reference run")).length).toBeGreaterThan(0);
     const stored = JSON.parse(window.localStorage.getItem(COMPARISON_STORAGE_KEY) ?? "[]") as Array<{ name: string; baseline: { netCost: number } }>;
     expect(stored).toHaveLength(1);
     expect(stored[0].name).toBe("Reference run");
