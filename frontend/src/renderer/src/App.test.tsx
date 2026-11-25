@@ -435,7 +435,7 @@ describe("GridMind desktop shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "0.99" } });
-    expect(screen.getByRole("status")).toHaveTextContent(/Scenario inputs changed since the latest run/i);
+    expect(screen.getByText("Scenario inputs changed since the latest run.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
     fireEvent.click(screen.getByRole("tab", { name: "Tariffs" }));
