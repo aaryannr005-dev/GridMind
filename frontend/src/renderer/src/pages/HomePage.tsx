@@ -116,9 +116,9 @@ export function HomePage({
 
       <section className="dashboard-summary" aria-label="Current workspace summary">
         <article className="dashboard-summary-card">
-          <span className="dashboard-summary-label">SCENARIO STATUS</span>
+          <span className="dashboard-summary-label">LATEST RUN</span>
           <strong>{scenarioStatus}</strong>
-          <small>{report ? (reportSource === "custom" ? "Based on your inputs" : "Synthetic demonstration run") : "No results have been generated yet"}</small>
+          <small>{report ? (reportSource === "custom" ? "Custom scenario run" : "Synthetic demonstration run") : "No results have been generated yet"}</small>
         </article>
         <article className="dashboard-summary-card">
           <span className="dashboard-summary-label">TIME HORIZON</span>
