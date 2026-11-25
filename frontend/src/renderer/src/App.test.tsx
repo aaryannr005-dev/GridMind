@@ -536,7 +536,11 @@ describe("GridMind desktop shell", () => {
     const createObjectURL = vi.fn().mockReturnValue("blob:gridmind-report");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
-    vi.useFakeTimers();
+    let scheduledRevoke: (() => void) | undefined;
+    const timeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation((callback) => {
+      if (typeof callback === "function") scheduledRevoke = callback as () => void;
+      return 0;
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
     expect(createObjectURL).toHaveBeenCalledOnce();
@@ -555,7 +559,9 @@ describe("GridMind desktop shell", () => {
     expect(csvText).toContain("modeled_cost_savings,0.65");
     expect(csvText).toContain("baseline_import_cost");
 
-    vi.advanceTimersByTime(1000);
+    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    scheduledRevoke?.();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:gridmind-report");
   });
 
