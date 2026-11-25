@@ -26,7 +26,7 @@ The architecture is local-first and provenance-preserving. Data acquisition is s
 | Parsing | Convert official-format CSV rows into typed observations without imputation or rescaling | `load_open_dosm_csv` |
 | Validation | Enforce schema, dates, categories, numeric range, uniqueness and structural completeness; identify gaps | Parser validation, `ObservationStatus`, `MissingPeriod`, Phase 4C quality reports, and Phase 4D measured-reference comparison |
 | Analysis | Calculate summaries only after explicit treatment of missing/provisional observations | Phase 4C provides an explicit inclusion policy; Phase 4D compares aligned simulation channels with supplied site measurements. Neither phase imputes missing values. |
-| Presentation | Show values with units, geography, period, status, source and licence attribution | Existing Energy Map page is a source directory; richer in-app data views are future work. |
+| Presentation | Show values with units, geography, period, status, source and licence attribution | Existing Energy Map page is a source directory; Phase 4E adds a searchable in-app source catalogue with publisher metadata, units, geographic coverage, source update dates, provisional-window warnings and attribution. Raw observation import and persistent local data storage remain future work. |
 | Scenario inputs | Accept explicit household/site time series and engineering configuration | Existing typed models and scenario form / engine bridge. Public national monthly aggregates do not enter this layer automatically. |
 
 ## 3. Dataset contract
@@ -83,8 +83,8 @@ Not yet implemented: managed raw-file archive/cache; automatic refresh; persiste
 - **4A — Architecture and contracts:** document data boundaries, provenance and quality semantics. Complete.
 - **4B — Malaysian public-data integration:** verify official sources and add bounded explicit acquisition. Complete.
 - **4C — Data quality and validation:** report completeness, blanks, gaps and publication status; require explicit inclusion policies. Complete.
-- **4D — Simulation validation:** compare aligned simulation channels with explicitly supplied site-level measurements using transparent error metrics and a caller-specified tolerance. The framework does not provide measured data or claim predictive accuracy without an independently sourced dataset. In progress.
-- **4E — Data experience:** expose provenance, quality flags, units, filters and source attribution in the desktop app while keeping public reference data separate from scenario inputs.
+- **4D — Simulation validation:** compare aligned simulation channels with explicitly supplied site-level measurements using transparent error metrics and a caller-specified tolerance. The framework does not provide measured data or claim predictive accuracy without an independently sourced dataset. Complete.
+- **4E — Data experience:** expose provenance, quality flags, units, filters and source attribution in the desktop app while keeping public reference data separate from scenario inputs. In progress; the initial catalogue view is implemented, while live observation import and local persistence remain out of scope.
 
 ## 10. Phase 4D validation contract
 
