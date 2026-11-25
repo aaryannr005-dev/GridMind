@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -82,3 +83,42 @@ def test_evaluation_rejects_wrong_length():
     forecast = forecast_series(points([1]), horizon_intervals=2, interval_minutes=60)
     with pytest.raises(ValueError, match="exactly one point"):
         evaluate_forecast(forecast, points([1], start=forecast.points[0].timestamp))
+
+
+@pytest.mark.parametrize(
+    ("history_times", "expected_times"),
+    [
+        (
+            (
+                datetime(2025, 11, 2, 0, 0, tzinfo=ZoneInfo("America/New_York")),
+                datetime(2025, 11, 2, 1, 0, tzinfo=ZoneInfo("America/New_York"), fold=0),
+                datetime(2025, 11, 2, 1, 0, tzinfo=ZoneInfo("America/New_York"), fold=1),
+            ),
+            (
+                datetime(2025, 11, 2, 2, 0, tzinfo=ZoneInfo("America/New_York")),
+                datetime(2025, 11, 2, 3, 0, tzinfo=ZoneInfo("America/New_York")),
+            ),
+        ),
+        (
+            (
+                datetime(2025, 3, 9, 0, 0, tzinfo=ZoneInfo("America/New_York")),
+                datetime(2025, 3, 9, 1, 0, tzinfo=ZoneInfo("America/New_York")),
+            ),
+            (
+                datetime(2025, 3, 9, 3, 0, tzinfo=ZoneInfo("America/New_York")),
+                datetime(2025, 3, 9, 4, 0, tzinfo=ZoneInfo("America/New_York")),
+            ),
+        ),
+    ],
+    ids=["fall-back-repeated-hour", "spring-forward-missing-hour"],
+)
+def test_forecast_advances_in_real_time_across_daylight_saving(history_times, expected_times):
+    history = tuple(TimeSeriesPoint(timestamp, float(index + 1)) for index, timestamp in enumerate(history_times))
+    forecast = forecast_series(history, horizon_intervals=2, interval_minutes=60)
+
+    assert tuple(point.timestamp for point in forecast.points) == expected_times
+    assert all(
+        right.timestamp.astimezone(timezone.utc) - left.timestamp.astimezone(timezone.utc)
+        == timedelta(hours=1)
+        for left, right in zip(forecast.points, forecast.points[1:])
+    )
