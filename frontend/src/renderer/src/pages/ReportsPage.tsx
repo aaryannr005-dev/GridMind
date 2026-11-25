@@ -1,4 +1,4 @@
-import type { GridMindScenarioReport, EngineInterval } from "../../../shared/protocol";
+import { useState } from "react";\nimport type { GridMindScenarioReport, EngineInterval } from "../../../shared/protocol";
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
 import type { ScenarioFormValues } from "../scenario-form";
@@ -9,7 +9,7 @@ interface ReportsPageProps {
   source: "synthetic" | "custom" | null;
   scenarioSnapshot: ScenarioFormValues | null;
   resultsAreStale: boolean;
-  onOpenSimulation: () => void;
+  onOpenSimulation: () => void;\n  onSaveComparison: (name: string) => string | null;
 }
 
 function csvCell(value: string | number | null | undefined): string {
@@ -236,7 +236,7 @@ export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale,
             This report remains tied to the last successful run. Exported files will preserve these completed results, not your newer unsimulated edits.
             <button className="text-action-button" type="button" onClick={onOpenSimulation}>Review current inputs</button>
           </FeedbackState>}
-          <section className="report-export-bar" aria-label="Report export actions">
+          <section className="results-section comparison-save-panel" aria-label="Save scenario for comparison">\n            <div><span className="eyebrow">SCENARIO BENCHMARKING</span><h2>Keep this run for comparison</h2><p>Save its modeled metrics on this device so you can compare it with another completed scenario later.</p></div>\n            <div className="comparison-save-controls"><label className="form-control">Case name<input value={comparisonName} maxLength={48} onChange={(event) => setComparisonName(event.target.value)} placeholder="e.g. 5 kW solar, 10 kWh battery" /></label><button className="secondary-button" type="button" onClick={saveCurrentComparison} disabled={!comparisonName.trim()}>Save case</button></div>\n            {comparisonFeedback && <p className={comparisonSaved ? "form-help" : "form-field-error"} role="status">{comparisonFeedback}</p>}\n          </section>\n          <section className="report-export-bar" aria-label="Report export actions">
             <div><strong>Export this run</strong><span>PDF for sharing · CSV for spreadsheet analysis</span></div>
             <div className="report-export-actions">
               <button className="secondary-button" type="button" onClick={() => window.print()}>Print / Save as PDF</button>
