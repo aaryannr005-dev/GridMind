@@ -9,6 +9,7 @@ import { DEFAULT_DASHBOARD_PREFERENCES, type DashboardPreferences } from "../das
 import type { ScenarioFormValues } from "../scenario-form";
 
 interface HomePageProps {
+  displayName: string;
   report: GridMindScenarioReport | null;
   reportSource: "synthetic" | "custom" | null;
   isRunning: boolean;
@@ -82,7 +83,7 @@ export function ScenarioResults({ report, source, preferences = DEFAULT_DASHBOAR
 }
 
 export function HomePage({
-  report, reportSource, isRunning, error, onRunDemo, onRunScenario, dashboardPreferences,
+  displayName, report, reportSource, isRunning, error, onRunDemo, onRunScenario, dashboardPreferences,
   scenarioValues, onValuesChange,
   playhead, onPlayheadChange, playing, onPlayingChange, speed, onSpeedChange, strategy, onStrategyChange,
 }: HomePageProps) {
@@ -94,7 +95,7 @@ export function HomePage({
     <div className="page-stack">
       <section className="hero-band">
         <div className="hero-copy">
-          <h1>Solar, battery and the grid for one modelled day</h1>
+          <h1>Welcome back, {displayName}. Here's your energy overview.</h1>
           <p className="hero-lede">
             The workspace sends your scenario to the local Python engine and steps through
             24 hourly intervals in Malaysia time, comparing self-consumption dispatch with
