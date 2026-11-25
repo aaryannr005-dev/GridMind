@@ -495,6 +495,26 @@ describe("GridMind desktop shell", () => {
   });
 
 
+  it("runs one-at-a-time sensitivity scenarios through the local engine", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    expect(screen.getByRole("heading", { name: "Scenario sensitivity" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Input to vary"), { target: { value: "solar_generation_kwh" } });
+    fireEvent.change(screen.getByLabelText("Outcome metric"), { target: { value: "grid_import_kwh" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run sensitivity sweep" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledTimes(5));
+    expect(runHourlyScenario).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      solar_generation_kwh: expect.arrayContaining([0]),
+    }));
+    expect(await screen.findByText("80% of baseline")).toBeInTheDocument();
+    expect(screen.getByText("120% of baseline")).toBeInTheDocument();
+    expect(screen.getByText(/One-at-a-time deterministic scenarios/)).toBeInTheDocument();
+  });
+
   it("provides a keyboard-accessible skip link to the main workspace", () => {
     render(<App />);
     const skipLink = screen.getByRole("link", { name: "Skip to main content" });
