@@ -602,7 +602,7 @@ describe("GridMind sensitivity analysis", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     fireEvent.click(screen.getByRole("button", { name: "Run sensitivity sweep" }));
 
-    expect(await screen.findByText("Infeasible")).toBeInTheDocument();
+    expect((await screen.findAllByText("Infeasible")).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/Infeasible cases remain visible/)).toBeInTheDocument();
     expect(screen.getByTitle("grid import exceeds configured maximum")).toBeInTheDocument();
   });
