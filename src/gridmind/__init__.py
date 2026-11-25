@@ -10,6 +10,10 @@ from .optimizer import (
 from .pv import apply_temperature_derating, cell_temperature_c, temperature_derate_factor
 from .metrics import SimulationMetrics, StrategyComparison, calculate_metrics, compare_strategies
 from .simulation import IntervalResult, SimulationResult, simulate
+from .simulation_validation import (
+    ChannelValidation, ReferenceMeasurements, SimulationValidationReport,
+    validate_simulation_against_reference,
+)
 from .reporting import (
     ComparisonRow, GridMindReport, HourlyReportRow, IntervalReportRow,
     ReportChart, generate_report, render_markdown,
@@ -42,6 +46,8 @@ __all__ = [
     "ELECTRICITY_CONSUMPTION", "ELECTRICITY_SUPPLY", "OPEN_DOSM_DATASETS",
     "DownloadedPublicData", "PublicDataDownloadError", "download_open_dosm_csv",
     "CategoryQuality", "DataQualityPolicy", "DataQualityReport", "evaluate_data_quality",
+    "ChannelValidation", "ReferenceMeasurements", "SimulationValidationReport",
+    "validate_simulation_against_reference",
     "calculate_metrics", "compare_strategies", "optimize_dispatch", "simulate",
     "generate_report", "render_markdown", "load_open_dosm_csv",
     "apply_temperature_derating", "cell_temperature_c", "temperature_derate_factor",
