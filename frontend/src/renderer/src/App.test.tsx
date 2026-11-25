@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GridMindScenarioReport } from "../../shared/protocol";
 import App from "./App";
+import { demoScenario } from "./demo-scenario";
 
 const metrics = {
   currency: "MYR",
@@ -508,7 +509,7 @@ describe("GridMind desktop shell", () => {
 
     await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledTimes(5));
     expect(runHourlyScenario).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      solar_generation_kwh: expect.arrayContaining([0]),
+      solar_generation_kwh: demoScenario.solar_generation_kwh.map((value) => value * 0.8),
     }));
     expect(await screen.findByText("80% of baseline")).toBeInTheDocument();
     expect(screen.getByText("120% of baseline")).toBeInTheDocument();
