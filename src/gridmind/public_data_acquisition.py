@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
+from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -127,6 +128,8 @@ def download_open_dosm_csv(
                 )
     except PublicDataDownloadError:
         raise
+    except IncompleteRead as exc:
+        raise PublicDataDownloadError("source response ended before the declared Content-Length") from exc
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
         raise PublicDataDownloadError("public dataset download failed") from exc
 
