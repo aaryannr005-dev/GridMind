@@ -15,6 +15,9 @@ from .reporting import (
     ReportChart, generate_report, render_markdown,
 )
 from .public_data_acquisition import DownloadedPublicData, PublicDataDownloadError, download_open_dosm_csv
+from .public_data_quality import (
+    CategoryQuality, DataQualityPolicy, DataQualityReport, evaluate_data_quality,
+)
 from .public_data import (
     ELECTRICITY_CONSUMPTION,
     ELECTRICITY_SUPPLY,
@@ -38,6 +41,7 @@ __all__ = [
     "ObservationStatus", "OpenDosmDataset", "OpenDosmSeries",
     "ELECTRICITY_CONSUMPTION", "ELECTRICITY_SUPPLY", "OPEN_DOSM_DATASETS",
     "DownloadedPublicData", "PublicDataDownloadError", "download_open_dosm_csv",
+    "CategoryQuality", "DataQualityPolicy", "DataQualityReport", "evaluate_data_quality",
     "calculate_metrics", "compare_strategies", "optimize_dispatch", "simulate",
     "generate_report", "render_markdown", "load_open_dosm_csv",
     "apply_temperature_derating", "cell_temperature_c", "temperature_derate_factor",
