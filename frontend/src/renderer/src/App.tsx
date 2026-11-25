@@ -159,7 +159,10 @@ export default function App() {
                   onReset={() => updateScenarioValues(createInitialScenarioValues())}
                 />
                 : activePage === "reports"
-                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} onRunSensitivityScenario={(payload) => window.gridmindDesktop.runHourlyScenario(payload)} />
+                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} onRunSensitivityScenario={(payload) => {
+                    if (!window.gridmindDesktop) return Promise.reject(new Error("The local engine bridge is not available in this app window."));
+                    return window.gridmindDesktop.runHourlyScenario(payload);
+                  }} />
                   : activePage === "energy-map"
                     ? <EnergyMapPage />
                     : activePage === "settings"
