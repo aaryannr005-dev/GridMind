@@ -330,6 +330,7 @@ def optimize_dispatch(
         raise ValueError("terminal_soc_kwh cannot exceed battery max_soc_kwh")
 
     horizon = len(inputs.demand.points)
+    tolerance = 1e-9
     if options.minimum_soc_schedule_kwh is not None:
         if len(options.minimum_soc_schedule_kwh) != horizon:
             raise ValueError("minimum_soc_schedule_kwh must contain one value per input interval")
@@ -364,7 +365,6 @@ def optimize_dispatch(
     start_index = states.index(initial_soc)
     terminal_index = states.index(terminal_soc)
     state_count = len(states)
-    tolerance = 1e-9
 
     costs = [math.inf] * state_count
     costs[start_index] = 0.0
