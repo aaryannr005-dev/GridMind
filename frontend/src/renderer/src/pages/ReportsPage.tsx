@@ -2,6 +2,7 @@ import type { GridMindScenarioReport, EngineInterval } from "../../../shared/pro
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
 import type { ScenarioFormValues } from "../scenario-form";
+import "./report-analytics.css";
 
 interface ReportsPageProps {
   report: GridMindScenarioReport | null;
@@ -82,6 +83,90 @@ function format(value: number | undefined, digits = 2): string {
   return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "Not available";
 }
 
+
+function seriesPath(values: number[], width: number, height: number, max: number): string {
+  if (values.length === 0) return "";
+  return values.map((value, index) => {
+    const x = 36 + (width - 52) * index / Math.max(values.length - 1, 1);
+    const y = height - 28 - (height - 48) * Math.max(0, value) / max;
+    return (index === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
+  }).join(" ");
+}
+
+function ReportVisualAnalytics({ report }: { report: GridMindScenarioReport }) {
+  const base = report.baseline_intervals;
+  const optimized = report.gridmind_intervals;
+  const maxValue = Math.max(1, ...base.map((item) => Math.max(item.demand_kwh, item.solar_generation_kwh, item.grid_import_kwh)),
+    ...(optimized ?? []).map((item) => Math.max(item.grid_import_kwh, item.grid_export_kwh)));
+  const width = 760;
+  const height = 250;
+  const baseImport = base.map((item) => item.grid_import_kwh);
+  const optimizedImport = optimized?.map((item) => item.grid_import_kwh) ?? [];
+  const energyRows = [
+    { label: "Direct solar to load", value: report.baseline.direct_solar_consumption_kwh, color: "var(--chart-solar)" },
+    { label: "Battery discharge", value: report.baseline.battery_discharge_kwh, color: "var(--chart-battery)" },
+    { label: "Grid imports", value: report.baseline.grid_import_kwh, color: "var(--chart-import)" },
+  ];
+  const demandTotal = Math.max(report.baseline.total_demand_kwh, 0.000001);
+  return (
+    <section className="results-section report-visual-analytics" aria-labelledby="report-visual-title">
+      <div className="section-heading">
+        <div><span className="eyebrow">VISUAL ANALYTICS</span><h2 id="report-visual-title">How the system behaved</h2></div>
+        <span className="subtle-label">{report.interval_count} INTERVALS</span>
+      </div>
+      <div className="report-chart-panel">
+        <div className="report-chart-heading"><div><h3>Hourly energy profile</h3><p>Actual interval values returned by the simulation engine</p></div><span>kWh / interval</span></div>
+        <div className="report-chart-legend">
+          <span><i className="demand" />Demand</span><span><i className="solar" />Solar generation</span>
+          <span><i className="baseline" />Baseline grid import</span>
+          {optimized && <span><i className="optimized" />GridMind grid import</span>}
+        </div>
+        <svg className="report-trend-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Line chart comparing demand, solar generation and grid imports for each simulation interval">
+          {[0, 1, 2, 3].map((tick) => {
+            const y = height - 28 - (height - 48) * tick / 3;
+            return <g key={tick}><line x1="36" x2={width - 16} y1={y} y2={y} className="report-chart-gridline" /><text x="29" y={y + 4} textAnchor="end" className="report-chart-axis">{(maxValue * tick / 3).toFixed(1)}</text></g>;
+          })}
+          <path d={seriesPath(base.map((item) => item.demand_kwh), width, height, maxValue)} className="report-series demand" />
+          <path d={seriesPath(base.map((item) => item.solar_generation_kwh), width, height, maxValue)} className="report-series solar" />
+          <path d={seriesPath(baseImport, width, height, maxValue)} className="report-series baseline" />
+          {optimized && <path d={seriesPath(optimizedImport, width, height, maxValue)} className="report-series optimized" />}
+          <text x="36" y={height - 7} className="report-chart-axis">Start</text>
+          <text x={width / 2} y={height - 7} textAnchor="middle" className="report-chart-axis">Simulation interval</text>
+          <text x={width - 16} y={height - 7} textAnchor="end" className="report-chart-axis">End</text>
+        </svg>
+      </div>
+      <div className="report-analytics-grid">
+        <div className="report-chart-panel">
+          <div className="report-chart-heading"><div><h3>Baseline demand coverage</h3><p>How modeled household demand was supplied</p></div></div>
+          <div className="report-coverage-list">
+            {energyRows.map((item) => <div className="report-coverage-row" key={item.label}>
+              <div><span>{item.label}</span><strong>{format(item.value)} kWh</strong></div>
+              <div className="report-coverage-track"><span style={{ width: `${Math.min(100, Math.max(0, item.value / demandTotal * 100))}%`, background: item.color }} /></div>
+              <small>{(item.value / demandTotal * 100).toFixed(1)}% of demand</small>
+            </div>)}
+          </div>
+          <p className="report-analytics-footnote">Coverage is calculated from the baseline run. Values are model outputs, not meter readings.</p>
+        </div>
+        <div className="report-chart-panel">
+          <div className="report-chart-heading"><div><h3>Dispatch comparison</h3><p>Totals across the modeled period</p></div></div>
+          <div className="report-dispatch-table">
+            <div className="report-dispatch-head"><span>Metric</span><span>Baseline</span><span>GridMind</span></div>
+            {[
+              ["Grid imports", report.baseline.grid_import_kwh, report.gridmind?.grid_import_kwh],
+              ["Grid exports", report.baseline.grid_export_kwh, report.gridmind?.grid_export_kwh],
+              ["Battery charged", report.baseline.battery_charge_kwh, report.gridmind?.battery_charge_kwh],
+              ["Battery discharged", report.baseline.battery_discharge_kwh, report.gridmind?.battery_discharge_kwh],
+            ].map(([label, baselineValue, gridmindValue]) => <div className="report-dispatch-row" key={String(label)}>
+              <span>{label}</span><strong>{format(Number(baselineValue))}</strong><strong>{gridmindValue == null ? "—" : format(Number(gridmindValue))}</strong>
+            </div>)}
+          </div>
+          <p className="report-analytics-footnote">All energy values are kWh. Dispatch differences depend on the configured objective and constraints.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale, onOpenSimulation }: ReportsPageProps) {
   return (
     <div className="page-stack reports-page">
@@ -139,6 +224,7 @@ export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale,
               <article><span>Grid import reduction</span><strong>{format(report.comparison?.grid_import_reduction_kwh)} kWh</strong><small>Baseline imports minus GridMind imports</small></article>
             </div>
           </section>
+          <ReportVisualAnalytics report={report} />
           <ScenarioResults report={report} source={source} />
           <section className="results-section report-validation">
             <div className="section-heading"><div><span className="eyebrow">ENGINE CHECKS</span><h2>Model integrity</h2></div></div>
