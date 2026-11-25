@@ -74,4 +74,42 @@ describe("EngineClient", () => {
     await expect(result).rejects.toMatchObject({ code: "INVALID_SCENARIO", message: "Battery capacity is invalid" });
     client.close();
   });
+
+  it("sends sensitivity requests and validates the structured result", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient({
+      appRoot: "/gridmind",
+      resourcesPath: "/gridmind/resources",
+      platform: "linux",
+      packaged: false,
+    }, (() => child as unknown as ChildProcessWithoutNullStreams) as unknown as typeof import("node:child_process").spawn);
+    let requestLine = "";
+    child.stdin.on("data", (chunk) => { requestLine += chunk.toString(); });
+
+    const requestPayload = {
+      scenario: payload(),
+      parameter: "demand" as const,
+      multipliers: [0.5, 1, 1.5],
+      metric: "net_cost" as const,
+      strategy: "gridmind" as const,
+    };
+    const result = client.runSensitivityAnalysis(requestPayload);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const request = JSON.parse(requestLine) as { id: string; operation: string };
+    expect(request.operation).toBe("run_sensitivity_analysis");
+    child.stdout.write(`${JSON.stringify({
+      id: request.id,
+      ok: true,
+      result: {
+        parameter: "demand", metric: "net_cost", currency: "MYR", baseline_value: 2,
+        points: [0.5, 1, 1.5].map((multiplier) => ({
+          multiplier, metric_value: 2 * multiplier, absolute_change: 2 * (multiplier - 1),
+          percentage_change: (multiplier - 1) * 100, feasible: true, error: null,
+        })),
+      },
+    })}\\n`);
+    await expect(result).resolves.toMatchObject({ parameter: "demand", baseline_value: 2 });
+    client.close();
+  });
+
 });
