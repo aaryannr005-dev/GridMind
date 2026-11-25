@@ -17,7 +17,7 @@ from typing import TextIO
 
 
 _LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
-_METADATA_CHECKED_ON = date(2026, 10, 24)
+_METADATA_CHECKED_ON = date(2026, 11, 25)
 _DATA_AS_OF = date(2026, 6, 30)
 _LAST_UPDATED = date(2026, 10, 8)
 
