@@ -106,6 +106,8 @@ export default function App() {
     }
     setIsSensitivityRunning(true);
     setSensitivityError(null);
+    setSensitivityReport(null);
+    setSensitivityScenarioSnapshot(null);
     try {
       const result = await window.gridmindDesktop.runSensitivityAnalysis(payload);
       setSensitivityReport(result);
