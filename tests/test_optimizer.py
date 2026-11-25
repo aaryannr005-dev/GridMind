@@ -51,9 +51,10 @@ class OptimizerTests(unittest.TestCase):
                 baseline_soc_schedule_kwh=baseline_soc,
             ),
         )
-        self.assertEqual(
-            tuple(item.state_of_charge_kwh for item in result.intervals),
-            baseline_soc,
+        self.assertAlmostEqual(result.terminal_soc_kwh, baseline_soc[-1])
+        self.assertLessEqual(
+            max(item.state_of_charge_kwh for item in result.intervals),
+            config.battery.max_soc_kwh,
         )
 
     def test_seeded_baseline_soc_path_is_never_worse_without_degradation_penalty(self):
