@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { TopNavTabs } from "./components/TopNavTabs";
+import { WelcomeScreen } from "./components/WelcomeScreen";
 import { HomePage } from "./pages/HomePage";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { getNavigationItem } from "./navigation";
 import type { PageId } from "./types";
 import { demoScenario } from "./demo-scenario";
@@ -12,39 +12,48 @@ import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario
 import { DEFAULT_DASHBOARD_PREFERENCES, loadDashboardPreferences, saveDashboardPreferences, type DashboardPreferences } from "./dashboard-preferences";
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { EnergyMapPage } from "./pages/EnergyMapPage";
+import { AboutPage } from "./pages/AboutPage";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { applyTheme, loadTheme, saveTheme, type ThemeName } from "./theme";
+import { loadDisplayName, saveDisplayName } from "./profile";
 import type { StrategyId } from "./components/ControlRail";
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
+  const [displayName, setDisplayName] = useState(loadDisplayName);
+  const [profileSaved, setProfileSaved] = useState(true);
   const [report, setReport] = useState<GridMindScenarioReport | null>(null);
   const [reportSource, setReportSource] = useState<"synthetic" | "custom" | null>(null);
+  const [reportScenarioValues, setReportScenarioValues] = useState<ScenarioFormValues | null>(null);
+  const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);
   const [scenarioValues, setScenarioValues] = useState<ScenarioFormValues>(createInitialScenarioValues);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dashboardPreferences, setDashboardPreferences] = useState<DashboardPreferences>(loadDashboardPreferences);
   const [preferencesSaved, setPreferencesSaved] = useState(true);
   const [theme, setTheme] = useState<ThemeName>(loadTheme);
-  // Timeline cursor and strategy display state shared across the workspace.
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [strategy, setStrategy] = useState<StrategyId>("baseline");
   const page = getNavigationItem(activePage);
-  const engineStatus = isRunning ? "ENGINE RUNNING" : report ? "ENGINE RESPONDED" : "ENGINE IDLE";
+  const resultsAreStale = report !== null && reportScenarioValues !== null
+    && JSON.stringify(scenarioValues) !== JSON.stringify(reportScenarioValues);
 
   useEffect(() => {
     applyTheme(theme);
-    // Read once on mount; subsequent changes go through updateTheme.
   }, []);
 
-  // A new engine report invalidates the old cursor and playback state.
   useEffect(() => {
     setPlayhead(null);
     setPlaying(false);
     setStrategy("baseline");
   }, [report]);
+
+  function updateScenarioValues(values: ScenarioFormValues): void {
+    setScenarioValues(values);
+    setError(null);
+  }
 
   function updateTheme(next: ThemeName): void {
     setTheme(next);
@@ -52,7 +61,18 @@ export default function App() {
     saveTheme(next);
   }
 
-  async function runScenario(payload: RunHourlyScenarioPayload, source: "synthetic" | "custom"): Promise<void> {
+  function updateDisplayName(value: string): void {
+    const normalized = value.trim().replace(/\s+/g, " ").slice(0, 40);
+    const saved = saveDisplayName(normalized);
+    if (saved) setDisplayName(normalized);
+    setProfileSaved(saved);
+  }
+
+  async function runScenario(
+    payload: RunHourlyScenarioPayload,
+    source: "synthetic" | "custom",
+    valuesSnapshot: ScenarioFormValues = scenarioValues,
+  ): Promise<void> {
     if (!window.gridmindDesktop) {
       setError("The local engine bridge is not available in this app window.");
       return;
@@ -63,15 +83,16 @@ export default function App() {
       const result = await window.gridmindDesktop.runHourlyScenario(payload);
       setReport(result);
       setReportSource(source);
+      setReportScenarioValues(JSON.parse(JSON.stringify(valuesSnapshot)) as ScenarioFormValues);
+      setReportTariffs({
+        importRates: [...payload.import_rate_per_kwh],
+        exportRates: [...payload.export_rate_per_kwh],
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The local engine could not complete the scenario.");
     } finally {
       setIsRunning(false);
     }
-  }
-
-  function runDemo(): void {
-    void runScenario(demoScenario, "synthetic");
   }
 
   function updateDashboardPreferences(preferences: DashboardPreferences): void {
@@ -83,28 +104,40 @@ export default function App() {
     updateDashboardPreferences({ ...DEFAULT_DASHBOARD_PREFERENCES });
   }
 
+  if (!displayName) {
+    return <WelcomeScreen onContinue={updateDisplayName} />;
+  }
+
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <main className="main-panel">
         <TopNavTabs activePage={activePage} onNavigate={setActivePage} />
         <div className="workspace-frame">
           <div className="workspace-status">
-            <span className="connection-indicator"><i className={isRunning ? "engine-running" : report ? "engine-ready" : ""} />{engineStatus}</span>
             <span className="crumb-label">{page.eyebrow} · {page.label}</span>
             <ThemeToggle theme={theme} onChange={updateTheme} />
           </div>
-          <div className="page-content">
+          {resultsAreStale && !isRunning && (
+            <div className="stale-results-banner" role="status">
+              <div><strong>Scenario inputs changed since the latest run.</strong><span>The results and charts still represent the previous input set. Run the scenario again to refresh them.</span></div>
+              <button type="button" onClick={() => setActivePage("simulation")}>Review and rerun</button>
+            </div>
+          )}
+          <div className="page-content" id="main-content" tabIndex={-1}>
             {activePage === "home"
               ? <HomePage
+                displayName={displayName}
                 report={report}
                 reportSource={reportSource}
+                reportTariffs={reportTariffs}
                 isRunning={isRunning}
                 error={error}
-                onRunDemo={runDemo}
-                onRunScenario={(payload) => { void runScenario(payload, "custom"); }}
+                onRunDemo={() => { void runScenario(demoScenario, "synthetic", createInitialScenarioValues()); }}
+                onRunScenario={(payload, snapshot) => { void runScenario(payload, "custom", snapshot); }}
                 dashboardPreferences={dashboardPreferences}
                 scenarioValues={scenarioValues}
-                onValuesChange={setScenarioValues}
+                onValuesChange={updateScenarioValues}
                 playhead={playhead}
                 onPlayheadChange={setPlayhead}
                 playing={playing}
@@ -121,17 +154,25 @@ export default function App() {
                   reportSource={reportSource}
                   isRunning={isRunning}
                   error={error}
-                  onValuesChange={setScenarioValues}
-                  onRun={(payload) => { void runScenario(payload, "custom"); }}
-                  onReset={() => setScenarioValues(createInitialScenarioValues())}
+                  onValuesChange={updateScenarioValues}
+                  onRun={(payload) => { void runScenario(payload, "custom", scenarioValues); }}
+                  onReset={() => updateScenarioValues(createInitialScenarioValues())}
                 />
                 : activePage === "reports"
-                  ? <ReportsPage report={report} source={reportSource} onOpenSimulation={() => setActivePage("simulation")} />
+                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} />
                   : activePage === "energy-map"
                     ? <EnergyMapPage />
                     : activePage === "settings"
-                      ? <PreferencesPage preferences={dashboardPreferences} onChange={updateDashboardPreferences} onReset={resetDashboardPreferences} isSaved={preferencesSaved} />
-                      : <PlaceholderPage page={page} />}
+                      ? <PreferencesPage
+                        preferences={dashboardPreferences}
+                        onChange={updateDashboardPreferences}
+                        onReset={resetDashboardPreferences}
+                        isSaved={preferencesSaved}
+                        displayName={displayName}
+                        onSaveDisplayName={updateDisplayName}
+                        profileSaved={profileSaved}
+                      />
+                      : <AboutPage />}
             <footer className="app-footer"><span>GRIDMIND <b>•</b> LOCAL ENERGY SIMULATION</span><span>{report ? "SCENARIO LOADED · " + (reportSource === "custom" ? "USER INPUTS" : "SYNTHETIC EXAMPLE") : "NO SCENARIO LOADED"}</span></footer>
           </div>
         </div>

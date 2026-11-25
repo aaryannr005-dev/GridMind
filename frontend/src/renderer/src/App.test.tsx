@@ -89,6 +89,7 @@ const runHourlyScenario = vi.fn();
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.localStorage.setItem("gridmind.profile.name.v1", "Test User");
   runHourlyScenario.mockReset();
   runHourlyScenario.mockResolvedValue(report);
   Object.defineProperty(window, "gridmindDesktop", {
@@ -99,31 +100,73 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
   Reflect.deleteProperty(window, "gridmindDesktop");
+});
+
+describe("GridMind first-run onboarding", () => {
+  it("asks for a name on first launch and saves it locally before opening the dashboard", () => {
+    window.localStorage.removeItem("gridmind.profile.name.v1");
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "A clearer view of your energy." })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Your name" }), { target: { value: "  Alex   Tan  " } });
+    fireEvent.click(screen.getByRole("button", { name: /Continue to GridMind/ }));
+
+    expect(window.localStorage.getItem("gridmind.profile.name.v1")).toBe("Alex Tan");
+    expect(screen.getByRole("heading", { name: "Welcome back, Alex Tan." })).toBeInTheDocument();
+  });
+
+  it("allows the display name to be edited from Settings", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Display name" }), { target: { value: "Ari" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save name" }));
+
+    expect(window.localStorage.getItem("gridmind.profile.name.v1")).toBe("Ari");
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    expect(screen.getByRole("heading", { name: "Welcome back, Ari." })).toBeInTheDocument();
+  });
 });
 
 describe("GridMind desktop shell", () => {
   it("shows an honest empty dashboard before a scenario runs", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: /solar, battery and the grid for one modelled day/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome back, Test User." })).toBeInTheDocument();
+    expect(screen.getByText("LATEST RUN")).toBeInTheDocument();
+    expect(screen.getAllByText("Not started")).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "Your first energy scenario starts here." })).toBeInTheDocument();
+    expect(screen.getByText("Set your assumptions")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
+  });
+
+  it("updates the dashboard summary from completed engine output", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    expect(await screen.findByText("Synthetic demonstration run")).toBeInTheDocument();
+    expect(screen.getAllByText("Completed")).toHaveLength(2);
+    expect(screen.getAllByText("24 × 60 min")).toHaveLength(2);
+    expect(screen.getAllByText("Self-consumption first")).toHaveLength(2);
   });
 
   it("marks the selected page in the accessible navigation", () => {
     render(<App />);
 
-    expect(screen.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
-    expect(screen.getByRole("button", { name: "Reports" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+    expect(screen.getByRole("button", { name: "Analytics" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("heading", { name: "Reports" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No completed reports yet" })).toBeInTheDocument();
   });
 
   it("shows the interactive historical map viewer and current data provenance", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Energy map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Data & Maps" }));
     expect(screen.getByText("Historical reference, not live grid data")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Energy Commission source page/ })).toHaveAttribute("href", "https://www.st.gov.my/resources/performance-statistical-information-malaysian-electricity-supply-industry-2021");
     expect(screen.getByRole("link", { name: /Open MyGDI Explorer/ })).toHaveAttribute("href", "https://mygdix.mygeoportal.gov.my/");
@@ -141,7 +184,7 @@ describe("GridMind desktop shell", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
     await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
 
     expect(screen.getByRole("heading", { name: "Scenario record" })).toBeInTheDocument();
     expect(screen.getAllByText("sample-fingerprint")).toHaveLength(2);
@@ -151,7 +194,7 @@ describe("GridMind desktop shell", () => {
 
   it("links the empty report page to the Simulation Lab", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
     fireEvent.click(screen.getByRole("button", { name: "Open Simulation Lab" }));
     expect(screen.getByRole("heading", { name: "Hourly energy profile" })).toBeInTheDocument();
   });
@@ -160,14 +203,14 @@ describe("GridMind desktop shell", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
     await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Energy and battery charts/ }));
 
     expect(window.localStorage.getItem("gridmind.dashboard-preferences.v1")).toContain('"showCharts":false');
-    expect(screen.getByText("Preferences saved on this device.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Overview" }));
+    expect(screen.getByText("Dashboard preferences saved on this device.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
     expect(screen.getByRole("heading", { name: "Energy and battery profile" })).toBeInTheDocument();
   });
 
@@ -183,18 +226,42 @@ describe("GridMind desktop shell", () => {
   it("shows the editable 24-hour Simulation Lab", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     expect(screen.getByRole("heading", { name: "Hourly energy profile" })).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" })).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Export credit at 23:00 MYT" })).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(25);
   });
 
+  it("exposes the full Phase 2 scenario configuration in the Simulation Lab", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+
+    expect(screen.getByRole("heading", { name: "Grid import and export limits" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Maximum grid import power (kW)" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Maximum grid export power (kW)" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum grid import power (kW)" }), { target: { value: "0" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum grid export power (kW)" }), { target: { value: "2.5" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Enable PV temperature derating/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Ambient temperature (°C)" }), { target: { value: "32" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Solar irradiance (W/m²)" }), { target: { value: "900" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Battery degradation penalty (currency/kWh)" }), { target: { value: "0.05" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      grid: { max_import_power_kw: 0, max_export_power_kw: 2.5 },
+      ambient_temperature_c: Array(24).fill(32),
+      solar_irradiance_w_m2: Array(24).fill(900),
+      degradation_cost_per_kwh: 0.05,
+    })));
+  });
+
   it("shows the idle engine state across navigation", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Data sources" }));
-    expect(screen.getByText("ENGINE IDLE")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Data & Maps" }));
+    expect(screen.getByRole("heading", { name: "Energy map" })).toBeInTheDocument();
     expect(screen.getByText("NO SCENARIO LOADED")).toBeInTheDocument();
   });
 
@@ -227,7 +294,7 @@ describe("GridMind desktop shell", () => {
 
   it("validates edited input and displays local engine results for a custom scenario", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "2.75" } });
     fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "-0.1" } });
     fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
@@ -244,7 +311,7 @@ describe("GridMind desktop shell", () => {
 
   it("blocks invalid custom inputs before calling the engine", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
 
@@ -322,19 +389,19 @@ describe("GridMind desktop shell", () => {
 
   it("shows battery state of health at 100% and updates usable capacity in the Simulation Lab", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
 
     const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
     expect(soh).toHaveValue(1);
-    expect(screen.getByText("10.00 kWh")).toBeInTheDocument();
+    expect(screen.getAllByText("10.00 kWh")).toHaveLength(2);
 
     fireEvent.change(soh, { target: { value: "0.8" } });
-    expect(screen.getByText("8.00 kWh")).toBeInTheDocument();
+    expect(screen.getAllByText("8.00 kWh")).toHaveLength(2);
   });
 
   it("rejects invalid SoH and maximum charge combinations in the Simulation Lab", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
 
     const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
     fireEvent.change(soh, { target: { value: "0.5" } });
@@ -353,7 +420,7 @@ describe("GridMind desktop shell", () => {
 
   it("sends a valid Simulation Lab SoH and reduced maximum charge to the engine", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /^Simulation lab/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
 
     fireEvent.change(screen.getByRole("spinbutton", { name: "Battery state of health" }), { target: { value: "0.5" } });
     fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum charge" }), { target: { value: "5" } });
@@ -363,4 +430,101 @@ describe("GridMind desktop shell", () => {
       battery: expect.objectContaining({ capacity_kwh: 10, max_soc_kwh: 5, state_of_health: 0.5 }),
     })));
   });
+  it("keeps tariff charts tied to the completed run and flags edited inputs as stale", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "0.99" } });
+    expect(screen.getByText("Scenario inputs changed since the latest run.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Tariffs" }));
+    const tariffPanel = screen.getByRole("tabpanel", { name: "Tariffs" });
+    fireEvent.click(tariffPanel.querySelector("summary")!);
+    const tariffRows = Array.from(tariffPanel.querySelectorAll("tr"));
+    const midnightTariffRow = tariffRows.find((row) => row.textContent?.includes("00:00"));
+    expect(midnightTariffRow).toBeDefined();
+    expect(midnightTariffRow).toHaveTextContent("0.22");
+    expect(midnightTariffRow).not.toHaveTextContent("0.99");
+  });
+
+  it("passes the exact Control Rail input snapshot with its completed run", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Grid maximum import power" }), { target: { value: "1.7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply grid limits & run" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      grid: { max_import_power_kw: 1.7 },
+    })));
+    expect(screen.queryByText(/Scenario inputs changed since the latest run/i)).not.toBeInTheDocument();
+  });
+
+
+  it("shows a reproducible report snapshot and supports print-to-PDF", async () => {
+    const print = vi.fn();
+    vi.stubGlobal("print", print);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    expect(screen.getByRole("heading", { name: "What changed?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Configuration snapshot" })).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getByText("10.00 kWh")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Print / Save as PDF" }));
+    expect(print).toHaveBeenCalledOnce();
+  });
+
+  it("keeps exported report results tied to the completed run when inputs become stale", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "0.99" } });
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    expect(screen.getByText(/Exported files will preserve these completed results/)).toBeInTheDocument();
+    expect(screen.getByText("+0.65 MYR")).toBeInTheDocument();
+  });
+
+
+  it("provides a keyboard-accessible skip link to the main workspace", () => {
+    render(<App />);
+    const skipLink = screen.getByRole("link", { name: "Skip to main content" });
+    expect(skipLink).toHaveAttribute("href", "#main-content");
+    expect(document.getElementById("main-content")).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("clears an old engine error when the user edits scenario inputs", async () => {
+    runHourlyScenario.mockRejectedValueOnce(new Error("Local Python engine unavailable"));
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    expect(await screen.findByText(/Local Python engine unavailable/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "0.7" } });
+    expect(screen.queryByText(/Local Python engine unavailable/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the CSV object URL alive briefly after starting the download", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    const createObjectURL = vi.fn().mockReturnValue("blob:gridmind-report");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    vi.useFakeTimers();
+
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:gridmind-report");
+  });
+
 });
