@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport } from "../../../shared/protocol";
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
-import { SliderNumberField } from "../components/SliderNumberField";\nimport { SensitivityAnalysisPanel } from "./SensitivityAnalysisPanel";
+import { SliderNumberField } from "../components/SliderNumberField";
+import { SensitivityAnalysisPanel } from "./SensitivityAnalysisPanel";
 import {
   validateScenarioForm,
   type BatteryFormKey,
@@ -19,6 +20,11 @@ interface SimulationLabPageProps {
   onValuesChange: (values: ScenarioFormValues) => void;
   onRun: (payload: RunHourlyScenarioPayload) => void;
   onReset: () => void;
+  sensitivityReport: SensitivityReport | null;
+  sensitivityLoading: boolean;
+  sensitivityError: string | null;
+  sensitivityStale: boolean;
+  onRunSensitivity: (payload: RunSensitivityAnalysisPayload) => void;
 }
 
 const seriesColumns: { key: ScenarioSeriesKey; label: string; short: string; minimum: number | null }[] = [
@@ -77,6 +83,7 @@ function formatEnergy(value: number | null): string {
 
 export function SimulationLabPage({
   values, report, reportSource, isRunning, error, onValuesChange, onRun, onReset,
+  sensitivityReport, sensitivityLoading, sensitivityError, sensitivityStale, onRunSensitivity,
 }: SimulationLabPageProps) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const errorSummary = useRef<HTMLDivElement>(null);
@@ -139,7 +146,8 @@ export function SimulationLabPage({
   });
   const usableCapacityErrors = validationErrors.filter((issue) =>
     issue.toLowerCase().includes("usable battery capacity"));
-  const errorListId = "scenario-validation-errors";\n  const sensitivityScenario = validateScenarioForm(values);
+  const errorListId = "scenario-validation-errors";
+  const sensitivityScenario = validateScenarioForm(values);
   const gridImportInvalid = validationErrors.some((issue) => issue.startsWith("Grid maximum import power"));
   const gridExportInvalid = validationErrors.some((issue) => issue.startsWith("Grid maximum export power"));
   const pvInvalid = (term: string) => validationErrors.some((issue) => issue.toLowerCase().includes(term));
