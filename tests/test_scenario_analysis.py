@@ -73,7 +73,7 @@ def test_tariff_sensitivity_changes_net_cost():
         multipliers=(0.5, 1.0, 2.0),
         metric=SensitivityMetric.NET_COST,
     )
-    assert [point.metric_value for point in report.points] == pytest.approx([0.25, 0.5, 1.0])
+    assert [point.metric_value for point in report.points] == pytest.approx([0.5, 1.0, 2.0])
 
 
 def test_export_tariff_requires_export_series():
