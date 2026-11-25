@@ -77,8 +77,8 @@ class ChannelValidation:
     root_mean_square_error_kwh: float
     mean_bias_error_kwh: float
     maximum_absolute_error_kwh: float
-    modelled_total_kwh: float
-    measured_total_kwh: float
+    modelled_total_kwh: float | None
+    measured_total_kwh: float | None
     within_tolerance: bool
 
 
@@ -112,6 +112,8 @@ def _compare_channel(
     modelled: tuple[float, ...],
     measured: tuple[TimeSeriesPoint, ...],
     tolerance: float,
+    *,
+    include_totals: bool = True,
 ) -> ChannelValidation:
     errors = tuple(actual - reference.value for actual, reference in zip(modelled, measured))
     absolute_errors = tuple(abs(error) for error in errors)
@@ -121,11 +123,15 @@ def _compare_channel(
         rmse = math.sqrt(math.fsum(error * error for error in errors) / count)
         bias = math.fsum(errors) / count
         maximum = max(absolute_errors)
-        modelled_total = math.fsum(modelled)
-        measured_total = math.fsum(point.value for point in measured)
+        modelled_total = math.fsum(modelled) if include_totals else None
+        measured_total = (
+            math.fsum(point.value for point in measured) if include_totals else None
+        )
     except OverflowError as exc:
         raise ValueError("validation statistics exceed the finite numeric range") from exc
-    values = (mae, rmse, bias, maximum, modelled_total, measured_total)
+    values = (mae, rmse, bias, maximum)
+    if include_totals:
+        values += (modelled_total, measured_total)
     if not all(math.isfinite(value) for value in values):
         raise ValueError("validation statistics exceed the finite numeric range")
     return ChannelValidation(
@@ -204,7 +210,12 @@ def validate_simulation_against_reference(
                 f"{reference_name} timestamps must match simulation intervals exactly"
             )
         modelled = tuple(getattr(interval, result_name) for interval in result.intervals)
-        comparisons[reference_name] = _compare_channel(modelled, measured, tolerance)
+        comparisons[reference_name] = _compare_channel(
+            modelled,
+            measured,
+            tolerance,
+            include_totals=reference_name != "battery_soc_kwh",
+        )
 
     assessed = tuple(value for value in comparisons.values() if value is not None)
     return SimulationValidationReport(
