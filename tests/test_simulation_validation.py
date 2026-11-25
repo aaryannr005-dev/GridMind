@@ -81,7 +81,7 @@ class SimulationValidationTests(unittest.TestCase):
         measured = tuple(i.grid_import_kwh for i in result.intervals)
         reference = ReferenceMeasurements(
             "Grid meter",
-            grid_import_kwh=points((measured[0] + 0.2, measured[1] - 0.1, measured[2])),
+            grid_import_kwh=points((measured[0] + 0.2, measured[1] + 0.1, measured[2])),
         )
         report = validate_simulation_against_reference(
             result, reference, absolute_tolerance_kwh=0.15
