@@ -166,6 +166,69 @@ class MetricsFidelityTests(unittest.TestCase):
         self.assertAlmostEqual(metrics.solar_self_consumption_kwh, 0.0)
 
 
+    def test_baseline_and_optimizer_remain_consistent_under_combined_constraints(self):
+        interval = timedelta(minutes=30)
+        timestamps = tuple(START + index * interval for index in range(4))
+
+        def half_hour_points(values):
+            return tuple(
+                TimeSeriesPoint(timestamp, value)
+                for timestamp, value in zip(timestamps, values)
+            )
+
+        config = GridMindConfig(
+            BatteryConfig(
+                capacity_kwh=2.0,
+                max_charge_power_kw=2.0,
+                max_discharge_power_kw=2.0,
+                charge_efficiency=0.9,
+                discharge_efficiency=0.85,
+                initial_soc_kwh=0.75,
+                min_soc_kwh=0.3,
+                state_of_health=0.75,
+            ),
+            interval_minutes=30,
+            grid=GridConfig(max_import_power_kw=3.0, max_export_power_kw=2.0),
+        )
+        inputs = InputData(
+            DemandSeries(half_hour_points((0.5, 1.0, 1.4, 0.2))),
+            SolarSeries(half_hour_points((2.0, 0.0, 0.0, 2.0))),
+            TariffSeries(
+                half_hour_points((0.1, 0.2, 0.9, 0.1)),
+                half_hour_points((0.03, 0.03, 0.03, 0.03)),
+            ),
+        )
+
+        baseline = simulate(config, inputs)
+        baseline_soc = tuple(item.state_of_charge_kwh for item in baseline.intervals)
+        optimized = optimize_dispatch(
+            config,
+            inputs,
+            OptimizationConfig(
+                soc_step_kwh=0.15,
+                terminal_soc_kwh=baseline_soc[-1],
+                baseline_soc_schedule_kwh=baseline_soc,
+            ),
+        )
+        baseline_metrics = calculate_metrics(baseline, config, inputs)
+        optimized_metrics = calculate_metrics(optimized, config, inputs)
+        comparison = compare_strategies(baseline, optimized, config, inputs)
+
+        for metrics in (baseline_metrics, optimized_metrics):
+            with self.subTest(strategy="baseline" if metrics is baseline_metrics else "optimized"):
+                self.assertTrue(metrics.energy_balance_valid)
+                self.assertTrue(metrics.battery_constraints_valid)
+                self.assertTrue(metrics.grid_constraints_valid)
+                self.assertTrue(metrics.tariff_costs_valid)
+
+        self.assertAlmostEqual(optimized.terminal_soc_kwh, baseline_soc[-1])
+        self.assertLessEqual(optimized.total_net_cost, baseline.total_net_cost + 1e-9)
+        self.assertAlmostEqual(
+            comparison.cost_savings,
+            baseline_metrics.net_cost - optimized_metrics.net_cost,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
 
