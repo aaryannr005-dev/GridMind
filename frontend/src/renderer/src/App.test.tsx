@@ -428,4 +428,30 @@ describe("GridMind desktop shell", () => {
       battery: expect.objectContaining({ capacity_kwh: 10, max_soc_kwh: 5, state_of_health: 0.5 }),
     })));
   });
+  it("keeps tariff charts tied to the completed run and flags edited inputs as stale", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "0.99" } });
+    expect(screen.getByRole("status")).toHaveTextContent(/Scenario inputs changed since the latest run/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Tariffs" }));
+    fireEvent.click(screen.getByText("View chart data"));
+    expect(screen.getByRole("row", { name: /00:00/ })).toHaveTextContent("0.22");
+    expect(screen.getByRole("row", { name: /00:00/ })).not.toHaveTextContent("0.99");
+  });
+
+  it("passes the exact Control Rail input snapshot with its completed run", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Grid maximum import power" }), { target: { value: "1.7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply grid limits & run" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      grid: { max_import_power_kw: 1.7 },
+    })));
+    expect(screen.queryByText(/Scenario inputs changed since the latest run/i)).not.toBeInTheDocument();
+  });
+
 });
