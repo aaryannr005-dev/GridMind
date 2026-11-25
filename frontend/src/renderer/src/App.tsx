@@ -179,6 +179,11 @@ export default function App() {
                   onValuesChange={updateScenarioValues}
                   onRun={(payload) => { void runScenario(payload, "custom", scenarioValues); }}
                   onReset={() => updateScenarioValues(createInitialScenarioValues())}
+                  sensitivityReport={sensitivityReport}
+                  sensitivityLoading={isSensitivityRunning}
+                  sensitivityError={sensitivityError}
+                  sensitivityStale={sensitivityScenarioSnapshot !== null && sensitivityScenarioSnapshot !== JSON.stringify(scenarioValues)}
+                  onRunSensitivity={(payload) => { void runSensitivity(payload); }}
                 />
                 : activePage === "reports"
                   ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} />
