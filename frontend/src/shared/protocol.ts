@@ -263,6 +263,17 @@ export function isRunHourlyScenarioPayload(value: unknown): value is RunHourlySc
   return true;
 }
 
+export function isRunSensitivityAnalysisPayload(value: unknown): value is RunSensitivityAnalysisPayload {
+  if (!isRecord(value) || !hasOnlyKeys(value, new Set(["scenario", "parameter", "multipliers", "metric", "strategy"]))) return false;
+  return isRunHourlyScenarioPayload(value.scenario)
+    && ["demand", "solar_generation", "import_tariff", "export_tariff"].includes(String(value.parameter))
+    && ["net_cost", "grid_import_kwh", "grid_export_kwh", "solar_self_consumption_ratio"].includes(String(value.metric))
+    && ["baseline", "gridmind"].includes(String(value.strategy))
+    && Array.isArray(value.multipliers) && value.multipliers.length >= 2 && value.multipliers.length <= 9
+    && value.multipliers.every((item) => isFiniteNumber(item) && item >= 0)
+    && new Set(value.multipliers).size === value.multipliers.length;
+}
+
 export function isGridMindScenarioReport(value: unknown): value is GridMindScenarioReport {
   if (!isRecord(value)) return false;
   const finiteFields = (record: Record<string, unknown>, keys: readonly string[]) =>
