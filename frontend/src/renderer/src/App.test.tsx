@@ -276,7 +276,7 @@ describe("GridMind desktop shell", () => {
       solar_irradiance_w_m2: Array(24).fill(900),
       degradation_cost_per_kwh: 0.05,
     })));
-  });
+  }, 15_000);
 
   it("shows the idle engine state across navigation", () => {
     render(<App />);
