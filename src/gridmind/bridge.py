@@ -15,7 +15,10 @@ import logging
 import sys
 from typing import BinaryIO, TextIO
 
-from .dashboard import run_hourly_scenario
+from .dashboard import build_hourly_scenario, run_hourly_scenario
+from .scenario_analysis import SensitivityMetric, SensitivityParameter, run_sensitivity_analysis
+from .optimizer import OptimizationConfig
+from .simulation import simulate
 from .models import BatteryConfig, GridConfig, PvConfig
 
 
@@ -69,7 +72,7 @@ def _is_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _validate_request(request: object) -> tuple[str, dict[str, object]]:
+def _validate_request(request: object) -> tuple[str, str, dict[str, object]]:
     if not _is_object(request):
         raise BridgeError("INVALID_REQUEST", "Request must be a JSON object")
     if set(request) != _REQUEST_KEYS:
@@ -78,12 +81,29 @@ def _validate_request(request: object) -> tuple[str, dict[str, object]]:
     request_id = request["id"]
     if not isinstance(request_id, str) or not request_id or len(request_id) > 128:
         raise BridgeError("INVALID_REQUEST", "Request id must be a non-empty string of at most 128 characters")
-    if request["operation"] != "run_hourly_scenario":
+    operation = request["operation"]
+    if operation not in {"run_hourly_scenario", "run_sensitivity_analysis"}:
         raise BridgeError("UNKNOWN_OPERATION", "This engine operation is not supported")
 
     payload = request["payload"]
     if not _is_object(payload):
         raise BridgeError("INVALID_REQUEST", "Scenario payload must be a JSON object")
+    if operation == "run_sensitivity_analysis":
+        if set(payload) != {"scenario", "parameter", "multipliers", "metric", "strategy"}:
+            raise BridgeError("INVALID_REQUEST", "Sensitivity payload has missing or unsupported fields")
+        if not isinstance(payload["scenario"], dict):
+            raise BridgeError("INVALID_SCENARIO", "scenario must be a valid hourly scenario payload")
+        _validate_request({"id": request_id, "operation": "run_hourly_scenario", "payload": payload["scenario"]})
+        if payload["parameter"] not in {item.value for item in SensitivityParameter}:
+            raise BridgeError("INVALID_SCENARIO", "parameter is not supported for sensitivity analysis")
+        if payload["metric"] not in {item.value for item in SensitivityMetric}:
+            raise BridgeError("INVALID_SCENARIO", "metric is not supported for sensitivity analysis")
+        if payload["strategy"] not in {"baseline", "gridmind"}:
+            raise BridgeError("INVALID_SCENARIO", "strategy must be baseline or gridmind")
+        multipliers = payload["multipliers"]
+        if not isinstance(multipliers, list) or not 2 <= len(multipliers) <= 9:
+            raise BridgeError("INVALID_SCENARIO", "multipliers must contain between 2 and 9 values")
+        return request_id, operation, payload
     required = _REQUIRED_PAYLOAD_KEYS
     if not required.issubset(payload) or set(payload) - _PAYLOAD_KEYS:
         raise BridgeError("INVALID_REQUEST", "Scenario payload has missing or unsupported fields")
@@ -141,7 +161,7 @@ def _validate_request(request: object) -> tuple[str, dict[str, object]]:
         if not isinstance(values, list) or len(values) != 24:
             raise BridgeError("INVALID_SCENARIO", f"{name} must contain exactly 24 hourly values")
 
-    return request_id, payload
+    return request_id, operation, payload
 
 
 def _json_value(value: object) -> object:
@@ -169,8 +189,36 @@ def handle_request(request: object) -> dict[str, object]:
             candidate_id = request.get("id")
             if isinstance(candidate_id, str) and candidate_id and len(candidate_id) <= 128:
                 request_id = candidate_id
-        request_id, payload = _validate_request(request)
+        request_id, operation, payload = _validate_request(request)
         try:
+            if operation == "run_sensitivity_analysis":
+                scenario = payload["scenario"]
+                battery = BatteryConfig(**scenario["battery"])
+                grid = GridConfig(**scenario["grid"]) if scenario.get("grid") is not None else None
+                pv = PvConfig(**scenario["pv"]) if scenario.get("pv") is not None else None
+                config, inputs = build_hourly_scenario(
+                    scenario["demand_kwh"], scenario["solar_generation_kwh"],
+                    scenario["import_rate_per_kwh"], scenario["export_rate_per_kwh"],
+                    start_date=date.fromisoformat(scenario["start_date"]), battery=battery,
+                    currency=scenario.get("currency", "MYR"), grid=grid, pv=pv,
+                    ambient_temperature_c=scenario.get("ambient_temperature_c"),
+                    solar_irradiance_w_m2=scenario.get("solar_irradiance_w_m2"),
+                )
+                options = None
+                if payload["strategy"] == "gridmind":
+                    baseline = simulate(config, inputs)
+                    options = OptimizationConfig(
+                        soc_step_kwh=max(battery.capacity_kwh / 200, 0.01),
+                        terminal_soc_kwh=baseline.intervals[-1].state_of_charge_kwh,
+                        baseline_soc_schedule_kwh=tuple(item.state_of_charge_kwh for item in baseline.intervals),
+                        degradation_cost_per_kwh=scenario.get("degradation_cost_per_kwh", 0.0),
+                    )
+                result = run_sensitivity_analysis(
+                    config, inputs, parameter=SensitivityParameter(payload["parameter"]),
+                    multipliers=payload["multipliers"], metric=SensitivityMetric(payload["metric"]),
+                    optimization_options=options,
+                )
+                return {"id": request_id, "ok": True, "result": _json_value(result)}
             battery = BatteryConfig(**payload["battery"])
             grid = (
                 GridConfig(**payload["grid"])
