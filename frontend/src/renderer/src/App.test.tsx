@@ -545,6 +545,7 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(revokeObjectURL).not.toHaveBeenCalled();
+    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
     timeoutSpy.mockRestore();
     const csvBlob = createObjectURL.mock.calls[0][0] as Blob;
     const csvText = await new Promise<string>((resolve, reject) => {
@@ -560,7 +561,6 @@ describe("GridMind desktop shell", () => {
     expect(csvText).toContain("modeled_cost_savings,0.65");
     expect(csvText).toContain("baseline_import_cost");
 
-    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
     expect(revokeObjectURL).not.toHaveBeenCalled();
     scheduledRevoke?.();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:gridmind-report");
