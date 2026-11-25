@@ -91,7 +91,7 @@ class SimulationValidationTests(unittest.TestCase):
         channel = report.grid_import
         self.assertAlmostEqual(channel.mean_absolute_error_kwh, 0.1)
         self.assertAlmostEqual(channel.root_mean_square_error_kwh, (0.05 / 3) ** 0.5)
-        self.assertAlmostEqual(channel.mean_bias_error_kwh, -0.1 / 3)
+        self.assertAlmostEqual(channel.mean_bias_error_kwh, -0.1)
         self.assertAlmostEqual(channel.maximum_absolute_error_kwh, 0.2)
         self.assertFalse(channel.within_tolerance)
         self.assertFalse(report.within_tolerance)
