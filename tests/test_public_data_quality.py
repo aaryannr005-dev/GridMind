@@ -78,6 +78,13 @@ class PublicDataQualityTests(unittest.TestCase):
         self.assertEqual(len(selected), 1)
         self.assertEqual(selected[0].value, 10.0)
 
+    def test_report_rejects_different_import_of_same_dataset(self):
+        original = self.load("date,sector,consumption\n2025-12-01,total,10\n")
+        different_import = self.load("date,sector,consumption\n2025-12-01,total,99\n")
+        report = evaluate_data_quality(original)
+        with self.assertRaisesRegex(ValueError, "different imported series"):
+            report.usable_observations(different_import)
+
     def test_rejects_report_for_different_dataset_and_invalid_policy(self):
         consumption = self.load("date,sector,consumption\n2025-12-01,total,10\n")
         supply = self.load(
