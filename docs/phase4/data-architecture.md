@@ -24,8 +24,8 @@ The architecture is local-first and provenance-preserving. Data acquisition is s
 | Acquisition | Obtain source bytes and record retrieval context | Explicit, bounded downloader for registered OpenDOSM CSV URLs; returns raw bytes, SHA-256, content type and retrieval timestamp. No cache or persistence. |
 | Raw input | Preserve the supplied source file unchanged for reproducibility | Caller-owned input; no raw-file store is currently implemented. |
 | Parsing | Convert official-format CSV rows into typed observations without imputation or rescaling | `load_open_dosm_csv` |
-| Validation | Enforce schema, dates, categories, numeric range, uniqueness and structural completeness; identify gaps | Parser validation, `ObservationStatus`, `MissingPeriod`, and Phase 4C quality reports |
-| Analysis | Calculate summaries only after explicit treatment of missing/provisional observations | Phase 4C provides an explicit inclusion policy; it does not impute missing values or silently include provisional/unknown observations. |
+| Validation | Enforce schema, dates, categories, numeric range, uniqueness and structural completeness; identify gaps | Parser validation, `ObservationStatus`, `MissingPeriod`, Phase 4C quality reports, and Phase 4D measured-reference comparison |
+| Analysis | Calculate summaries only after explicit treatment of missing/provisional observations | Phase 4C provides an explicit inclusion policy; Phase 4D compares aligned simulation channels with supplied site measurements. Neither phase imputes missing values. |
 | Presentation | Show values with units, geography, period, status, source and licence attribution | Existing Energy Map page is a source directory; richer in-app data views are future work. |
 | Scenario inputs | Accept explicit household/site time series and engineering configuration | Existing typed models and scenario form / engine bridge. Public national monthly aggregates do not enter this layer automatically. |
 
@@ -74,19 +74,29 @@ Derived summaries must identify their source observation set and filters. A summ
 
 ## 8. Current implementation assessment
 
-Implemented: immutable metadata and registry; bounded acquisition; strict offline parsing; source-unit preservation; blank/zero distinction; missing-period detection; publication status; Phase 4C category-level quality reporting and explicit inclusion policy; unit tests for these contracts.
+Implemented: immutable metadata and registry; bounded acquisition; strict offline parsing; source-unit preservation; blank/zero distinction; missing-period detection; publication status; Phase 4C category-level quality reporting and explicit inclusion policy; Phase 4D measured-reference comparison for aligned demand, PV generation, grid import/export and battery state-of-charge channels.
 
-Not yet implemented: managed raw-file archive/cache; automatic refresh; persistent import identity/history; user-facing import workflow and tabular explorer; independent external reconciliation; measured site-level datasets suitable for household-model validation.
+Not yet implemented: managed raw-file archive/cache; automatic refresh; persistent import identity/history; user-facing import workflow and tabular explorer; independent external reconciliation; a verified measured Malaysian household/site dataset and a calibration study using such data.
 
 ## 9. Phase 4 delivery sequence
 
 - **4A — Architecture and contracts:** document data boundaries, provenance and quality semantics. Complete.
 - **4B — Malaysian public-data integration:** verify official sources and add bounded explicit acquisition. Complete.
-- **4C — Data quality and validation:** report completeness, blanks, gaps and publication status; require explicit inclusion policies. This subphase adds diagnostics, not data repair.
-- **4D — Simulation validation:** identify suitable measured site-level profiles and compare aligned model/reference observations. Do not use national aggregates as household ground truth.
+- **4C — Data quality and validation:** report completeness, blanks, gaps and publication status; require explicit inclusion policies. Complete.
+- **4D — Simulation validation:** compare aligned simulation channels with explicitly supplied site-level measurements using transparent error metrics and a caller-specified tolerance. The framework does not provide measured data or claim predictive accuracy without an independently sourced dataset. In progress.
 - **4E — Data experience:** expose provenance, quality flags, units, filters and source attribution in the desktop app while keeping public reference data separate from scenario inputs.
 
-## 10. Phase 4C acceptance criteria
+## 10. Phase 4D validation contract
+
+`ReferenceMeasurements` accepts one or more measured channels: demand, solar generation, grid import, grid export and battery state of charge. Each channel is a timestamped kWh series and must align exactly with the simulation intervals (timezone-equivalent instants are accepted). The caller records the source name and is responsible for ensuring that the meter boundary corresponds to the simulated quantity.
+
+`validate_simulation_against_reference` reports measurement count, mean absolute error, root mean square error, mean bias error and maximum absolute error for each supplied channel. Measured/modelled totals are reported only for interval-energy channels; battery state of charge is a sampled state and is not summed. A channel passes only when its maximum absolute interval error is within the explicitly supplied absolute tolerance. This tolerance is a caller-selected comparison setting, not a universal engineering standard.
+
+Missing channels are omitted, not inferred. Misaligned timestamps, empty channels, negative measurements and invalid tolerances are rejected. The comparison is offline and does not download, persist, resample, interpolate, impute, calibrate or alter simulation inputs or calculations.
+
+**Evidence limitation:** No independently verified measured Malaysian household dataset is currently bundled with GridMind. Unit tests use clearly synthetic test measurements to verify the comparison mathematics and validation contract; they are not empirical evidence of model accuracy. A real validation study still requires a suitably licensed site-level dataset with matching meter boundaries, intervals, units and provenance.
+
+## 11. Phase 4C and 4D acceptance criteria
 
 - [x] Completeness is reported separately from numeric-value completeness.
 - [x] Missing rows and blank cells remain separate.
@@ -94,4 +104,7 @@ Not yet implemented: managed raw-file archive/cache; automatic refresh; persiste
 - [x] Default analysis selection includes only numeric final observations.
 - [x] Provisional/unknown inclusion requires explicit opt-in.
 - [x] No imputation, rescaling or scenario conversion is performed.
-- [ ] Independent source reconciliation and measured site-level validation remain future work.
+- [x] Measured-reference comparison checks exact timestamp alignment.
+- [x] Error metrics and an explicit caller-selected tolerance are reported.
+- [x] Synthetic unit-test fixtures are not represented as measured validation evidence.
+- [ ] Independent source reconciliation and a measured site-level validation study remain future work.
