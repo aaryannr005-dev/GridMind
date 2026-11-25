@@ -160,7 +160,7 @@ describe("EngineClient", () => {
     child.emit("exit", 2, null);
 
     await expect(result).rejects.toMatchObject({ code: "ENGINE_EXITED" });
-    expect(child.kill).not.toHaveBeenCalled();
+    expect(child.kill).toHaveBeenCalledOnce();
   });
 
   it("enforces the pending-request limit without sending an extra request", async () => {
