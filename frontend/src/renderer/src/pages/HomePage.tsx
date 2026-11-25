@@ -12,10 +12,11 @@ interface HomePageProps {
   displayName: string;
   report: GridMindScenarioReport | null;
   reportSource: "synthetic" | "custom" | null;
+  reportTariffs: { importRates: number[]; exportRates: number[] } | null;
   isRunning: boolean;
   error: string | null;
   onRunDemo: () => void;
-  onRunScenario: (payload: RunHourlyScenarioPayload) => void;
+  onRunScenario: (payload: RunHourlyScenarioPayload, snapshot: ScenarioFormValues) => void;
   dashboardPreferences: DashboardPreferences;
   scenarioValues: ScenarioFormValues;
   onValuesChange: (values: ScenarioFormValues) => void;
@@ -83,7 +84,7 @@ export function ScenarioResults({ report, source, preferences = DEFAULT_DASHBOAR
 }
 
 export function HomePage({
-  displayName, report, reportSource, isRunning, error, onRunDemo, onRunScenario, dashboardPreferences,
+  displayName, report, reportSource, reportTariffs, isRunning, error, onRunDemo, onRunScenario, dashboardPreferences,
   scenarioValues, onValuesChange,
   playhead, onPlayheadChange, playing, onPlayingChange, speed, onSpeedChange, strategy, onStrategyChange,
 }: HomePageProps) {
@@ -181,8 +182,8 @@ export function HomePage({
               intervals={strategyIntervals}
               intervalMinutes={report.interval_minutes}
               currency={report.currency}
-              importRates={scenarioValues.import_rate_per_kwh.map(Number)}
-              exportRates={scenarioValues.export_rate_per_kwh.map(Number)}
+              importRates={reportTariffs?.importRates ?? null}
+              exportRates={reportTariffs?.exportRates ?? null}
             />
           )}
           {report && reportSource
