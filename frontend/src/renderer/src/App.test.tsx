@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GridMindScenarioReport } from "../../shared/protocol";
 import App from "./App";
+import { COMPARISON_STORAGE_KEY } from "./scenario-comparisons";
 
 const metrics = {
   currency: "MYR",
@@ -525,6 +526,26 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
     fireEvent.change(screen.getByRole("spinbutton", { name: "Demand at 00:00 MYT" }), { target: { value: "0.7" } });
     expect(screen.queryByText(/Local Python engine unavailable/)).not.toBeInTheDocument();
+  });
+
+  it("saves completed engine reports as local comparison snapshots and supports removal", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Name this completed run" }), { target: { value: "Reference run" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save comparison snapshot" }));
+
+    expect(await screen.findByText("Reference run")).toBeInTheDocument();
+    const stored = JSON.parse(window.localStorage.getItem(COMPARISON_STORAGE_KEY) ?? "[]") as Array<{ name: string; baseline: { netCost: number } }>;
+    expect(stored).toHaveLength(1);
+    expect(stored[0].name).toBe("Reference run");
+    expect(stored[0].baseline.netCost).toBe(1.85);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Reference run from comparison library" }));
+    expect(screen.queryByText("Reference run")).not.toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(COMPARISON_STORAGE_KEY) ?? "[]")).toHaveLength(0);
   });
 
   it("keeps the CSV object URL alive briefly after starting the download", async () => {
