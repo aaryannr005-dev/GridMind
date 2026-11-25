@@ -1,6 +1,7 @@
 """GridMind input models, simulation, optimization, metrics, reports, and public data."""
 
-from .forecasting import ForecastEvaluation, ForecastMethod, ForecastResult, evaluate_forecast, forecast_series\nfrom .models import (
+from .forecasting import ForecastEvaluation, ForecastMethod, ForecastResult, evaluate_forecast, forecast_series
+from .models import (
     BatteryConfig, DemandSeries, GridConfig, GridMindConfig, InputData,
     PvConfig, SolarSeries, TariffSeries, TimeSeriesPoint,
 )
