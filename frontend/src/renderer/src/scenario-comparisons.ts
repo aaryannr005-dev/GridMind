@@ -63,8 +63,8 @@ export function isSavedScenarioComparison(value: unknown): value is SavedScenari
     && finite(item.solarGenerationKwh) && item.solarGenerationKwh >= 0
     && finite(item.batteryCapacityKwh) && item.batteryCapacityKwh > 0
     && finite(item.batteryStateOfHealth) && item.batteryStateOfHealth > 0 && item.batteryStateOfHealth <= 1
-    && (item.averageImportTariff === null || (finite(item.averageImportTariff) && item.averageImportTariff >= 0))
-    && (item.averageExportTariff === null || (finite(item.averageExportTariff) && item.averageExportTariff >= 0))
+    && (item.averageImportTariff === null || finite(item.averageImportTariff))
+    && (item.averageExportTariff === null || finite(item.averageExportTariff))
     && (item.maxImportPowerKw === null || (finite(item.maxImportPowerKw) && item.maxImportPowerKw >= 0))
     && (item.maxExportPowerKw === null || (finite(item.maxExportPowerKw) && item.maxExportPowerKw >= 0))
     && isMetrics(item.baseline)
