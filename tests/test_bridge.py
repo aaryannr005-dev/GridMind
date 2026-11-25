@@ -235,6 +235,28 @@ class EngineBridgeTests(unittest.TestCase):
         self.assertIsNone(points[2]["metric_value"])
         self.assertIn("grid import exceeds", points[2]["error"])
 
+
+    def test_sensitivity_operation_runs_gridmind_optimizer(self):
+        scenario = scenario_request(
+            demand_kwh=[0.75] * 24,
+            solar_generation_kwh=[0.0] * 6 + [0.2] * 12 + [0.0] * 6,
+        )["payload"]
+        request = {
+            "id": "sensitivity-optimizer",
+            "operation": "run_sensitivity_analysis",
+            "payload": {
+                "scenario": scenario,
+                "parameter": "solar_generation",
+                "multipliers": [0.5, 1.0, 1.5],
+                "metric": "net_cost",
+                "strategy": "gridmind",
+            },
+        }
+        result = handle_request(request)
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["result"]["points"]), 3)
+        self.assertTrue(all(point["feasible"] for point in result["result"]["points"]))
+
     def test_sensitivity_rejects_malformed_parameters(self):
         request = {
             "id": "sensitivity-invalid",
