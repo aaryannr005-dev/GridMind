@@ -60,6 +60,7 @@ class MetricsTests(unittest.TestCase):
         self.assertAlmostEqual(metrics.net_cost, 0.4)
         self.assertTrue(metrics.energy_balance_valid)
         self.assertTrue(metrics.battery_constraints_valid)
+        self.assertTrue(metrics.grid_constraints_valid)
         self.assertTrue(metrics.tariff_costs_valid)
 
     def test_compares_strategies_and_reports_tradeoffs(self):
