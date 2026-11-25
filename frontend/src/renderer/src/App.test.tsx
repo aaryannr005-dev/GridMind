@@ -113,7 +113,7 @@ describe("GridMind first-run onboarding", () => {
     fireEvent.click(screen.getByRole("button", { name: /Continue to GridMind/ }));
 
     expect(window.localStorage.getItem("gridmind.profile.name.v1")).toBe("Alex Tan");
-    expect(screen.getByRole("heading", { name: "Welcome back, Alex Tan. Here's your energy overview." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome back, Alex Tan." })).toBeInTheDocument();
   });
 
   it("allows the display name to be edited from Settings", () => {
@@ -124,7 +124,7 @@ describe("GridMind first-run onboarding", () => {
 
     expect(window.localStorage.getItem("gridmind.profile.name.v1")).toBe("Ari");
     fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
-    expect(screen.getByRole("heading", { name: "Welcome back, Ari. Here's your energy overview." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome back, Ari." })).toBeInTheDocument();
   });
 });
 
@@ -132,9 +132,24 @@ describe("GridMind desktop shell", () => {
   it("shows an honest empty dashboard before a scenario runs", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: /Welcome back, Test User/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome back, Test User." })).toBeInTheDocument();
+    expect(screen.getByText("SCENARIO STATUS")).toBeInTheDocument();
+    expect(screen.getByText("Not started")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your first energy scenario starts here." })).toBeInTheDocument();
+    expect(screen.getByText("Set your assumptions")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No scenario results yet" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Energy and battery profile" })).not.toBeInTheDocument();
+
+  it("updates the dashboard summary from completed engine output", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    expect(await screen.findByText("Synthetic demonstration run")).toBeInTheDocument();
+    expect(screen.getAllByText("Completed")).toHaveLength(2);
+    expect(screen.getByText("24 × 60 min")).toBeInTheDocument();
+    expect(screen.getByText("Self-consumption first")).toBeInTheDocument();
+  });
   });
 
   it("marks the selected page in the accessible navigation", () => {
