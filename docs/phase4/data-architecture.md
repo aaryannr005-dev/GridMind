@@ -2,7 +2,7 @@
 
 **Status:** Architecture baseline  
 **Scope:** Data-source boundaries, provenance, validation, and the path from public reference data to scenario inputs.  
-**Non-goal:** This phase does not add live network access, a database, telemetry, a new data feed, or automatic conversion of national statistics into household demand.
+**Non-goal:** This architecture does not add a database, telemetry, live hardware integration, automatic refresh, or automatic conversion of national statistics into household demand. Phase 4B adds only an explicit, bounded download operation for registered public CSV sources.
 
 ## 1. Design goals
 
@@ -99,7 +99,7 @@ Derived summaries must identify the source observation set and any filters (cate
 
 - Invalid structure or values fail import with a clear row/field-specific error.
 - Missing observations are reported as quality information, not fatal errors by default.
-- Network acquisition, if introduced later, must be an explicit user action with timeouts, bounded downloads, HTTPS-only source allowlists, and clear failure states. It must not run from the simulation engine or silently refresh data.
+- Network acquisition is an explicit caller action with timeouts, bounded downloads, HTTPS-only source allowlists, same-host HTTPS redirect restrictions, response-size verification, and clear failure states. It must not run from the simulation engine or silently refresh data.
 - Imported files are untrusted input. Parsers must not execute content, follow arbitrary links, or accept arbitrary schema changes.
 - No dataset may change scenario inputs or engine behaviour without an explicit user action and a validated, documented transformation.
 - No live grid control, telemetry, account system, or database is introduced by this architecture.
@@ -119,7 +119,7 @@ Not yet present:
 
 - A managed download/cache or raw-file archive.
 - Automatic source refresh or update monitoring.
-- File-hash based import identity.
+- Persistent file-hash based import identity; the downloader currently returns a SHA-256 digest with each in-memory download result.
 - A user-facing import workflow or tabular explorer for imported observations.
 - Explicit analysis policies for provisional data and missing-value handling.
 - Independent validation against a second source or documented reconciliation procedure.
@@ -149,4 +149,4 @@ Expose provenance, quality flags, units, filters and source attribution in the d
 - [x] Missing, blank, zero, provisional and unknown values have explicit semantics.
 - [x] Public reference data is explicitly prohibited from silently becoming household simulation input.
 - [x] Provenance, licensing, trust and reproducibility requirements are documented.
-- [x] Current capabilities and gaps are stated without implying that download, refresh, or validation workflows already exist.
+- [x] Current capabilities and gaps distinguish explicit download and offline parsing from persistence, automatic refresh, and independent validation.
