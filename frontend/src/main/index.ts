@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join, resolve } from "node:path";
 import { EngineClient } from "./engine-client";
-import { isRunHourlyScenarioPayload } from "../shared/protocol";
+import { isRunHourlyScenarioPayload, isRunSensitivityAnalysisPayload } from "../shared/protocol";
 
 const isDevelopment = !app.isPackaged;
 const applicationId = "com.gridmind.desktop";
@@ -22,6 +22,16 @@ ipcMain.handle("gridmind:run-hourly-scenario", (event, payload: unknown) => {
     throw new Error("Scenario request has an invalid shape");
   }
   return engineClient.runHourlyScenario(payload);
+});
+
+ipcMain.handle("gridmind:run-sensitivity-analysis", (event, payload: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    throw new Error("Unauthorized engine request");
+  }
+  if (!isRunSensitivityAnalysisPayload(payload)) {
+    throw new Error("Sensitivity request has an invalid shape");
+  }
+  return engineClient.runSensitivityAnalysis(payload);
 });
 
 function createWindow(): void {
