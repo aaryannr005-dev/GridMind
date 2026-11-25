@@ -19,7 +19,7 @@ interface ReportsPageProps {
   onDeleteComparison: (id: string) => void;
 }
 
-function csvCell(value: string | number | null | undefined): string {
+function csvCell(value: string | number | boolean | null | undefined): string {
   const text = value == null ? "" : String(value);
   return /[",\r\n]/.test(text) ? '"' + text.replaceAll('"', '""') + '"' : text;
 }
@@ -56,7 +56,7 @@ function exportCsv(report: GridMindScenarioReport): void {
       ...(gridmind ? intervalValues("gridmind", gridmind).map(([, value]) => value) : []),
     ];
   });
-  const summary = [
+  const summary: [string, string | number | boolean | null | undefined][] = [
     ["report_type", "GridMind modeled scenario report"],
     ["scenario_fingerprint", report.scenario_fingerprint],
     ["period_start_myt", report.period_start],
@@ -72,8 +72,22 @@ function exportCsv(report: GridMindScenarioReport): void {
     ["modeled_cost_savings", report.comparison?.cost_savings ?? ""],
     ["baseline_grid_import_kwh", report.baseline.grid_import_kwh],
     ["gridmind_grid_import_kwh", report.gridmind?.grid_import_kwh ?? ""],
+    ["baseline_grid_export_kwh", report.baseline.grid_export_kwh],
+    ["gridmind_grid_export_kwh", report.gridmind?.grid_export_kwh ?? ""],
+    ["baseline_solar_self_consumption_ratio", report.baseline.solar_self_consumption_ratio ?? ""],
+    ["gridmind_solar_self_consumption_ratio", report.gridmind?.solar_self_consumption_ratio ?? ""],
+    ["baseline_energy_balance_valid", report.baseline.energy_balance_valid],
+    ["gridmind_energy_balance_valid", report.gridmind?.energy_balance_valid ?? ""],
+    ["baseline_battery_constraints_valid", report.baseline.battery_constraints_valid],
+    ["gridmind_battery_constraints_valid", report.gridmind?.battery_constraints_valid ?? ""],
+    ["baseline_grid_constraints_valid", report.baseline.grid_constraints_valid],
+    ["gridmind_grid_constraints_valid", report.gridmind?.grid_constraints_valid ?? ""],
+    ["baseline_tariff_costs_valid", report.baseline.tariff_costs_valid],
+    ["gridmind_tariff_costs_valid", report.gridmind?.tariff_costs_valid ?? ""],
     ["cost_basis", "Net tariff cost = import charges minus export credits; excludes optional battery degradation penalty in optimizer objective"],
     ["note", "Modeled estimates, not measured performance or guaranteed savings"],
+    ...report.assumptions.map((assumption, index): [string, string] => ["assumption_" + String(index + 1).padStart(2, "0"), assumption]),
+    ...report.limitations.map((limitation, index): [string, string] => ["limitation_" + String(index + 1).padStart(2, "0"), limitation]),
   ];
   const content = [
     ...summary.map((row) => row.map(csvCell).join(",")),

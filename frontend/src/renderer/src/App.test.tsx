@@ -605,6 +605,9 @@ describe("GridMind desktop shell", () => {
     expect(csvText).toContain("baseline_net_cost,1.85");
     expect(csvText).toContain("modeled_cost_savings,0.65");
     expect(csvText).toContain("baseline_import_cost");
+    expect(csvText).toContain("baseline_energy_balance_valid,true");
+    expect(csvText).toContain("assumption_01,Synthetic demonstration inputs.");
+    expect(csvText).toContain("limitation_01,Does not model battery degradation.");
 
     expect(revokeObjectURL).not.toHaveBeenCalled();
     scheduledRevoke?.();
