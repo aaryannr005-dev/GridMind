@@ -10,7 +10,7 @@ export interface ComparisonMetrics {
   netCost: number;
   gridImportKwh: number;
   gridExportKwh: number;
-  solarSelfConsumptionRatio: number;
+  solarSelfConsumptionRatio: number | null;
   batteryChargeKwh: number;
   batteryDischargeKwh: number;
 }
@@ -41,7 +41,7 @@ function isMetrics(value: unknown): value is ComparisonMetrics {
   const item = value as Record<string, unknown>;
   return finite(item.importCost) && finite(item.exportCredit) && finite(item.netCost)
     && finite(item.gridImportKwh) && finite(item.gridExportKwh)
-    && finite(item.solarSelfConsumptionRatio) && finite(item.batteryChargeKwh)
+    && (item.solarSelfConsumptionRatio === null || finite(item.solarSelfConsumptionRatio)) && finite(item.batteryChargeKwh)
     && finite(item.batteryDischargeKwh);
 }
 
