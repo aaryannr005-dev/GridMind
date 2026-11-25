@@ -51,6 +51,7 @@ export function SensitivityAnalysisPanel({
 
   function submit() {
     if (!scenario || loading) return;
+    setLastStrategy(strategy);
     onRun({ scenario, parameter, multipliers, metric, strategy });
   }
 
@@ -95,7 +96,8 @@ export function SensitivityAnalysisPanel({
         <div><span>INPUT DIMENSION</span><strong>{parameterLabels[report.parameter]}</strong></div>
         <div><span>DISPATCH METHOD</span><strong>{lastStrategy === "gridmind" ? "GridMind optimiser" : "Self-consumption-first"}</strong></div>
       </div>
-      <div className="sensitivity-results" role="img" aria-label={`Sensitivity results for ${parameterLabels[report.parameter]} and ${metricLabels[report.metric]}`}>
+      <p className="form-help">Bar length shows absolute metric magnitude within this sweep; signed values and changes are shown in the table below.</p>
+      <div className="sensitivity-results" role="group" aria-label={`Sensitivity results for ${parameterLabels[report.parameter]} and ${metricLabels[report.metric]}`}>
         {report.points.map((point) => <div className="sensitivity-point" key={point.multiplier}>
           <span className="sensitivity-multiplier">{Math.round(point.multiplier * 100)}%</span>
           <div className="sensitivity-track"><span className={`sensitivity-bar ${point.feasible ? "is-feasible" : "is-infeasible"}`} style={{ width: point.feasible && point.metric_value !== null ? Math.max(2, Math.abs(point.metric_value) / scale * 100) + "%" : "0%" }} /></div>
