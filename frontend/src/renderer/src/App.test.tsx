@@ -171,7 +171,7 @@ describe("GridMind desktop shell", () => {
     expect(screen.getByRole("link", { name: /Open Energy Commission source page/ })).toHaveAttribute("href", "https://www.st.gov.my/resources/performance-statistical-information-malaysian-electricity-supply-industry-2021");
     expect(screen.getByRole("link", { name: /Open MyGDI Explorer/ })).toHaveAttribute("href", "https://mygdix.mygeoportal.gov.my/");
     expect(screen.getByRole("link", { name: /Explore current statistics and download data/ })).toHaveAttribute("href", "https://open.dosm.gov.my/data-catalogue/electricity_supply");
-    expect(screen.getByText(/OpenDOSM publishes monthly electricity supply by sector under CC BY 4\.0/)).toBeInTheDocument();
+    expect(screen.getByText(/OpenDOSM publishes monthly electricity supply by sector under/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "CC BY 4.0" })).toHaveAttribute("href", "https://creativecommons.org/licenses/by/4.0/");
     expect(screen.getByRole("link", { name: /Open the 2022 publication page/ })).toHaveAttribute("href", "https://www.st.gov.my/maklumat-prestasi-statistik-industri-pembekalan-elektrik-malaysia-2022");
     fireEvent.click(screen.getByRole("button", { name: /View the historical map in GridMind/ }));
