@@ -10,6 +10,7 @@ export interface NavigationItem {
 export interface DesktopBridge {
   platform: string;
   runHourlyScenario: import("../../shared/protocol").DesktopBridge["runHourlyScenario"];
+  runSensitivityAnalysis: import("../../shared/protocol").DesktopBridge["runSensitivityAnalysis"];
 }
 
 declare global {
