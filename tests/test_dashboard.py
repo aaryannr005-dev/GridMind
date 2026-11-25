@@ -126,6 +126,10 @@ class DashboardScenarioTests(unittest.TestCase):
         )
         self.assertEqual(len(run.baseline.intervals), 24)
         self.assertEqual(len(run.optimized.intervals), 24)
+        self.assertLessEqual(
+            run.optimized.total_net_cost,
+            run.baseline.total_net_cost + 1e-9,
+        )
         self.assertEqual(run.report.interval_count, 24)
         self.assertEqual(
             run.optimized.terminal_soc_kwh,
