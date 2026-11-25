@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import math
 
 from .models import TimeSeriesPoint
-from .simulation import SimulationResult
+from .simulation import IntervalResult, SimulationResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,12 +116,15 @@ def _compare_channel(
     errors = tuple(actual - reference.value for actual, reference in zip(modelled, measured))
     absolute_errors = tuple(abs(error) for error in errors)
     count = len(errors)
-    mae = math.fsum(absolute_errors) / count
-    rmse = math.sqrt(math.fsum(error * error for error in errors) / count)
-    bias = math.fsum(errors) / count
-    maximum = max(absolute_errors)
-    modelled_total = math.fsum(modelled)
-    measured_total = math.fsum(point.value for point in measured)
+    try:
+        mae = math.fsum(absolute_errors) / count
+        rmse = math.sqrt(math.fsum(error * error for error in errors) / count)
+        bias = math.fsum(errors) / count
+        maximum = max(absolute_errors)
+        modelled_total = math.fsum(modelled)
+        measured_total = math.fsum(point.value for point in measured)
+    except OverflowError as exc:
+        raise ValueError("validation statistics exceed the finite numeric range") from exc
     values = (mae, rmse, bias, maximum, modelled_total, measured_total)
     if not all(math.isfinite(value) for value in values):
         raise ValueError("validation statistics exceed the finite numeric range")
@@ -154,8 +157,22 @@ def validate_simulation_against_reference(
     if not isinstance(reference, ReferenceMeasurements):
         raise ValueError("reference must be a ReferenceMeasurements instance")
     tolerance = _finite_nonnegative(absolute_tolerance_kwh, "absolute_tolerance_kwh")
-    if not result.intervals:
-        raise ValueError("result must contain at least one interval")
+    if not isinstance(result.intervals, tuple) or not result.intervals:
+        raise ValueError("result must contain a non-empty tuple of intervals")
+    for interval in result.intervals:
+        if not isinstance(interval, IntervalResult):
+            raise ValueError("result intervals must contain IntervalResult instances")
+        if (
+            not isinstance(interval.timestamp, datetime)
+            or interval.timestamp.tzinfo is None
+            or interval.timestamp.utcoffset() is None
+        ):
+            raise ValueError("result interval timestamps must be timezone-aware")
+        for name in (
+            "demand_kwh", "solar_generation_kwh", "grid_import_kwh",
+            "grid_export_kwh", "state_of_charge_kwh",
+        ):
+            _finite_nonnegative(getattr(interval, name), f"result {name}")
 
     result_timestamps = tuple(
         interval.timestamp.astimezone(timezone.utc) for interval in result.intervals
