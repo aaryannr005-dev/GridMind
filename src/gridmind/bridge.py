@@ -82,7 +82,7 @@ def _validate_request(request: object) -> tuple[str, str, dict[str, object]]:
     if not isinstance(request_id, str) or not request_id or len(request_id) > 128:
         raise BridgeError("INVALID_REQUEST", "Request id must be a non-empty string of at most 128 characters")
     operation = request["operation"]
-    if operation not in {"run_hourly_scenario", "run_sensitivity_analysis"}:
+    if not isinstance(operation, str) or operation not in {"run_hourly_scenario", "run_sensitivity_analysis"}:
         raise BridgeError("UNKNOWN_OPERATION", "This engine operation is not supported")
 
     payload = request["payload"]
@@ -94,11 +94,11 @@ def _validate_request(request: object) -> tuple[str, str, dict[str, object]]:
         if not isinstance(payload["scenario"], dict):
             raise BridgeError("INVALID_SCENARIO", "scenario must be a valid hourly scenario payload")
         _validate_request({"id": request_id, "operation": "run_hourly_scenario", "payload": payload["scenario"]})
-        if payload["parameter"] not in {item.value for item in SensitivityParameter}:
+        if not isinstance(payload["parameter"], str) or payload["parameter"] not in {item.value for item in SensitivityParameter}:
             raise BridgeError("INVALID_SCENARIO", "parameter is not supported for sensitivity analysis")
-        if payload["metric"] not in {item.value for item in SensitivityMetric}:
+        if not isinstance(payload["metric"], str) or payload["metric"] not in {item.value for item in SensitivityMetric}:
             raise BridgeError("INVALID_SCENARIO", "metric is not supported for sensitivity analysis")
-        if payload["strategy"] not in {"baseline", "gridmind"}:
+        if not isinstance(payload["strategy"], str) or payload["strategy"] not in {"baseline", "gridmind"}:
             raise BridgeError("INVALID_SCENARIO", "strategy must be baseline or gridmind")
         multipliers = payload["multipliers"]
         if not isinstance(multipliers, list) or not 2 <= len(multipliers) <= 9:
