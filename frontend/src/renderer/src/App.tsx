@@ -25,7 +25,11 @@ export default function App() {
   const [report, setReport] = useState<GridMindScenarioReport | null>(null);
   const [reportSource, setReportSource] = useState<"synthetic" | "custom" | null>(null);
   const [reportScenarioValues, setReportScenarioValues] = useState<ScenarioFormValues | null>(null);
-  const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);\n  const [sensitivityReport, setSensitivityReport] = useState<SensitivityReport | null>(null);\n  const [sensitivityError, setSensitivityError] = useState<string | null>(null);\n  const [isSensitivityRunning, setIsSensitivityRunning] = useState(false);\n  const [sensitivityScenarioSnapshot, setSensitivityScenarioSnapshot] = useState<string | null>(null);
+  const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);
+  const [sensitivityReport, setSensitivityReport] = useState<SensitivityReport | null>(null);
+  const [sensitivityError, setSensitivityError] = useState<string | null>(null);
+  const [isSensitivityRunning, setIsSensitivityRunning] = useState(false);
+  const [sensitivityScenarioSnapshot, setSensitivityScenarioSnapshot] = useState<string | null>(null);
   const [scenarioValues, setScenarioValues] = useState<ScenarioFormValues>(createInitialScenarioValues);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
