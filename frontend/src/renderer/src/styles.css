@@ -723,3 +723,38 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
   .simulation-submit-bar .form-actions .primary-button { width: 100%; }
   .simulation-advanced-fields { grid-template-columns: 1fr; }
 }
+
+
+/* ---- Result provenance and stale-input warning ------------------------ */
+.stale-results-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 22px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--warning-line, var(--line-strong));
+  border-radius: var(--radius-m);
+  background: var(--warning-soft, var(--panel-soft));
+}
+.stale-results-banner > div { display: grid; gap: 3px; min-width: 0; }
+.stale-results-banner strong { color: var(--text-strong); font-size: 11px; }
+.stale-results-banner span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.stale-results-banner button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: var(--panel);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.stale-results-banner button:hover { border-color: var(--accent); color: var(--accent-strong); }
+@media (max-width: 650px) {
+  .stale-results-banner { align-items: stretch; flex-direction: column; margin-inline: 12px; }
+  .stale-results-banner button { width: 100%; }
+}
