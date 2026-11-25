@@ -75,6 +75,8 @@ class SimulationValidationTests(unittest.TestCase):
         self.assertEqual(report.demand.measurement_count, 3)
         self.assertEqual(report.grid_import.mean_absolute_error_kwh, 0.0)
         self.assertEqual(report.battery_soc.maximum_absolute_error_kwh, 0.0)
+        self.assertIsNone(report.battery_soc.modelled_total_kwh)
+        self.assertIsNone(report.battery_soc.measured_total_kwh)
 
     def test_reports_mae_rmse_bias_and_maximum_error(self):
         _, _, result = scenario()
