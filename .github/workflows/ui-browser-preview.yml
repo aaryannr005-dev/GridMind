@@ -7,9 +7,6 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/ui-browser-preview.yml"
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
