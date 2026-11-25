@@ -22,9 +22,10 @@ class OptimizationConfig:
 
     If terminal_soc_kwh is omitted, the optimizer must finish at the initial
     state of charge. Grid charging is available by default and is selected only
-    when it improves the modeled objective. ``degradation_cost_per_kwh`` adds an
-    optional penalty per kWh discharged to the dispatch objective; it is not a
-    measured or forecast replacement cost.
+    when it improves the modeled objective. Optional per-interval schedules can
+    impose minimum end-of-interval SOC reserves and restrict grid charging.
+    ``degradation_cost_per_kwh`` adds an optional penalty per kWh discharged
+    to the dispatch objective; it is not a measured or forecast replacement cost.
     """
 
     soc_step_kwh: float = 0.5
@@ -290,8 +291,11 @@ def optimize_dispatch(
     when needed to stay within the cap; transitions remain infeasible when
     demand alone exceeds it. The default terminal state equals the starting
     state to avoid consuming stored energy outside the modeled horizon.
-    ``OptimizationResult.total_cost`` is the tariff objective plus any configured
-    degradation penalty; ``total_net_cost`` excludes that penalty.
+    Optional minimum-SOC schedules impose a hard reserve at the end of each
+    interval. Optional grid-charging schedules restrict grid charging by
+    interval; the global ``allow_grid_charging=False`` setting overrides them.
+    ``OptimizationResult.total_cost`` is the tariff objective plus any
+    configured degradation penalty; ``total_net_cost`` excludes that penalty.
     """
     if not isinstance(config, GridMindConfig):
         raise ValueError("config must be a GridMindConfig")
