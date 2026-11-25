@@ -133,8 +133,10 @@ class DashboardScenarioTests(unittest.TestCase):
         )
         self.assertEqual(run.report.baseline.energy_balance_valid, True)
         self.assertEqual(run.report.baseline.battery_constraints_valid, True)
+        self.assertEqual(run.report.baseline.grid_constraints_valid, True)
         self.assertEqual(run.report.gridmind.energy_balance_valid, True)
         self.assertEqual(run.report.gridmind.battery_constraints_valid, True)
+        self.assertEqual(run.report.gridmind.grid_constraints_valid, True)
         self.assertEqual(len(metric_rows(run)), 14)
         self.assertEqual(run.report.scenario_fingerprint, run_hourly_scenario(
             self.demand,
