@@ -86,13 +86,22 @@ const report = {
   charts: [],
 } as GridMindScenarioReport;
 
-const runHourlyScenario = vi.fn();\nconst runSensitivityAnalysis = vi.fn();
+const runHourlyScenario = vi.fn();
+const runSensitivityAnalysis = vi.fn();
 
 beforeEach(() => {
   window.localStorage.clear();
   window.localStorage.setItem("gridmind.profile.name.v1", "Test User");
   runHourlyScenario.mockReset();
-  runHourlyScenario.mockResolvedValue(report);\n  runSensitivityAnalysis.mockReset();\n  runSensitivityAnalysis.mockResolvedValue({\n    parameter: "demand", metric: "net_cost", currency: "MYR", baseline_value: 1.85,\n    points: [0.5, 0.75, 1, 1.25, 1.5].map((multiplier) => ({\n      multiplier, metric_value: 1.85 * multiplier, absolute_change: 1.85 * (multiplier - 1),\n      percentage_change: (multiplier - 1) * 100, feasible: true, error: null,\n    })),\n  });
+  runHourlyScenario.mockResolvedValue(report);
+  runSensitivityAnalysis.mockReset();
+  runSensitivityAnalysis.mockResolvedValue({
+    parameter: "demand", metric: "net_cost", currency: "MYR", baseline_value: 1.85,
+    points: [0.5, 0.75, 1, 1.25, 1.5].map((multiplier) => ({
+      multiplier, metric_value: 1.85 * multiplier, absolute_change: 1.85 * (multiplier - 1),
+      percentage_change: (multiplier - 1) * 100, feasible: true, error: null,
+    })),
+  });
   Object.defineProperty(window, "gridmindDesktop", {
     configurable: true,
     value: { platform: "linux", runHourlyScenario, runSensitivityAnalysis },
