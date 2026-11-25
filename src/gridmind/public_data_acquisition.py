@@ -119,6 +119,8 @@ def download_open_dosm_csv(
                 if declared_length < 0 or declared_length > max_bytes:
                     raise PublicDataDownloadError("source file exceeds the configured download size limit")
             content = response.read(max_bytes + 1)
+            if len(content) > max_bytes:
+                raise PublicDataDownloadError("source file exceeds the configured download size limit")
             if declared_length is not None and len(content) != declared_length:
                 raise PublicDataDownloadError(
                     "source response length did not match Content-Length (incomplete or malformed download)"
