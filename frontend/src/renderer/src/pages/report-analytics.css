@@ -64,3 +64,30 @@
   .report-financial-table { min-width: 0; }
   .report-financial-table th, .report-financial-table td { padding: 7px 6px; font-size: 8px; }
 }
+
+
+.scenario-comparison-library { gap: 13px; }
+.scenario-comparison-save { display: grid; gap: 7px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--panel-soft); }
+.scenario-comparison-save > label { color: var(--text-strong); font-size: 10px; font-weight: 650; }
+.scenario-comparison-save > div { display: flex; flex-wrap: wrap; gap: 9px; }
+.scenario-comparison-save input { flex: 1 1 220px; min-width: 0; min-height: 38px; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-m); background: var(--panel); color: var(--text-strong); font: inherit; font-size: 11px; }
+.scenario-comparison-save .primary-button { min-height: 38px; }
+.scenario-comparison-save small { color: var(--faint); font-size: 9px; line-height: 1.45; }
+.comparison-library-empty { display: grid; gap: 5px; padding: 18px; border: 1px dashed var(--line-strong); border-radius: var(--radius-m); }
+.comparison-library-empty strong { color: var(--text-strong); font-size: 11px; }
+.comparison-library-empty span { color: var(--muted); font-size: 10px; }
+.scenario-comparison-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-m); }
+.scenario-comparison-table { width: 100%; min-width: 1080px; border-collapse: collapse; }
+.scenario-comparison-table caption { padding: 10px 12px; color: var(--muted); font-size: 10px; text-align: left; }
+.scenario-comparison-table th, .scenario-comparison-table td { padding: 10px 11px; border-top: 1px solid var(--line); text-align: right; font-size: 9px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.scenario-comparison-table thead th { color: var(--faint); background: var(--panel-soft); font-size: 8px; font-weight: 650; text-transform: uppercase; }
+.scenario-comparison-table th:first-child { text-align: left; }
+.scenario-comparison-table tbody th { color: var(--text-strong); font-weight: 650; white-space: normal; min-width: 140px; }
+.scenario-comparison-table tbody th small { display: block; margin-top: 3px; color: var(--faint); font-size: 8px; font-weight: 400; }
+.scenario-comparison-table tbody td { color: var(--muted); font-family: var(--mono); }
+@media print {
+  .scenario-comparison-save, .scenario-comparison-table button { display: none !important; }
+  .scenario-comparison-table-wrap { overflow: visible; }
+  .scenario-comparison-table { min-width: 0; }
+  .scenario-comparison-table th, .scenario-comparison-table td { padding: 5px 4px; font-size: 7px; }
+}

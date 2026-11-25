@@ -17,6 +17,10 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import { applyTheme, loadTheme, saveTheme, type ThemeName } from "./theme";
 import { loadDisplayName, saveDisplayName } from "./profile";
 import type { StrategyId } from "./components/ControlRail";
+import {
+  appendScenarioComparison, createScenarioComparison, deleteScenarioComparison,
+  loadScenarioComparisons, saveScenarioComparisons,
+} from "./scenario-comparisons";
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
@@ -40,6 +44,8 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [strategy, setStrategy] = useState<StrategyId>("baseline");
+  const [scenarioComparisons, setScenarioComparisons] = useState(loadScenarioComparisons);
+  const [comparisonStorageError, setComparisonStorageError] = useState(false);
   const page = getNavigationItem(activePage);
   const resultsAreStale = report !== null && reportScenarioValues !== null
     && JSON.stringify(scenarioValues) !== JSON.stringify(reportScenarioValues);
@@ -120,6 +126,28 @@ export default function App() {
     }
   }
 
+  function saveComparison(name: string): void {
+    if (!report || !reportSource) return;
+    const snapshot = createScenarioComparison(report, reportSource, reportScenarioValues, name);
+    const next = appendScenarioComparison(scenarioComparisons, snapshot);
+    if (!saveScenarioComparisons(next)) {
+      setComparisonStorageError(true);
+      return;
+    }
+    setScenarioComparisons(next);
+    setComparisonStorageError(false);
+  }
+
+  function removeComparison(id: string): void {
+    const next = deleteScenarioComparison(scenarioComparisons, id);
+    if (!saveScenarioComparisons(next)) {
+      setComparisonStorageError(true);
+      return;
+    }
+    setScenarioComparisons(next);
+    setComparisonStorageError(false);
+  }
+
   function updateDashboardPreferences(preferences: DashboardPreferences): void {
     setDashboardPreferences(preferences);
     setPreferencesSaved(saveDashboardPreferences(preferences));
@@ -189,7 +217,7 @@ export default function App() {
                   onRunSensitivity={(payload) => { void runSensitivity(payload); }}
                 />
                 : activePage === "reports"
-                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} />
+                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} savedComparisons={scenarioComparisons} comparisonStorageError={comparisonStorageError} onSaveComparison={saveComparison} onDeleteComparison={removeComparison} />
                   : activePage === "energy-map"
                     ? <EnergyMapPage />
                     : activePage === "settings"
