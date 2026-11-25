@@ -23,6 +23,7 @@ const metrics = {
   net_cost: 1.85,
   energy_balance_valid: true,
   battery_constraints_valid: true,
+  grid_constraints_valid: true,
   tariff_costs_valid: true,
   max_load_balance_error_kwh: 0,
   max_solar_balance_error_kwh: 0,
