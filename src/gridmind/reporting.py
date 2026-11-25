@@ -393,9 +393,9 @@ def render_markdown(report: GridMindReport) -> str:
              ("Net estimated cost", report.baseline.net_cost, report.gridmind.net_cost if report.gridmind else None, report.currency)]
     lines.extend(f"| {name} | {fmt(base)} | {fmt(opt)} | {unit} |" for name, base, opt, unit in items)
     lines += ["", "## Validation", "",
-              f"Baseline: energy balance {report.baseline.energy_balance_valid}; battery constraints {report.baseline.battery_constraints_valid}; tariff costs {report.baseline.tariff_costs_valid}."]
+              f"Baseline: energy balance {report.baseline.energy_balance_valid}; battery constraints {report.baseline.battery_constraints_valid}; grid constraints {report.baseline.grid_constraints_valid}; tariff costs {report.baseline.tariff_costs_valid}."]
     if report.gridmind:
-        lines.append(f"GridMind: energy balance {report.gridmind.energy_balance_valid}; battery constraints {report.gridmind.battery_constraints_valid}; tariff costs {report.gridmind.tariff_costs_valid}.")
+        lines.append(f"GridMind: energy balance {report.gridmind.energy_balance_valid}; battery constraints {report.gridmind.battery_constraints_valid}; grid constraints {report.gridmind.grid_constraints_valid}; tariff costs {report.gridmind.tariff_costs_valid}.")
     if report.comparison_rows:
         lines += ["", "## Baseline vs GridMind", "", "| Metric | Baseline | GridMind | Savings / change | Change % | Unit | Interpretation |", "|---|---:|---:|---:|---:|---|---|"]
         lines.extend(f"| {r.metric} | {fmt(r.baseline)} | {fmt(r.gridmind)} | {fmt(r.change)} | {fmt(r.change_percent)} | {r.unit} | {r.favorable_direction} |" for r in report.comparison_rows)
