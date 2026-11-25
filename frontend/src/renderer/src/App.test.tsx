@@ -231,6 +231,30 @@ describe("GridMind desktop shell", () => {
     expect(screen.getAllByRole("row")).toHaveLength(25);
   });
 
+  it("exposes the full Phase 2 scenario configuration in the Simulation Lab", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+
+    expect(screen.getByRole("heading", { name: "Grid import and export limits" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Maximum grid import power (kW)" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Maximum grid export power (kW)" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum grid import power (kW)" }), { target: { value: "0" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum grid export power (kW)" }), { target: { value: "2.5" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Enable PV temperature derating/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Ambient temperature (°C)" }), { target: { value: "32" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Solar irradiance (W/m²)" }), { target: { value: "900" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Battery degradation penalty (currency/kWh)" }), { target: { value: "0.05" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and run scenario" }));
+
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalledWith(expect.objectContaining({
+      grid: { max_import_power_kw: 0, max_export_power_kw: 2.5 },
+      ambient_temperature_c: Array(24).fill(32),
+      solar_irradiance_w_m2: Array(24).fill(900),
+      degradation_cost_per_kwh: 0.05,
+    })));
+  });
+
   it("shows the idle engine state across navigation", () => {
     render(<App />);
 
