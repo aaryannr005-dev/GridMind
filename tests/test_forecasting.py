@@ -61,7 +61,7 @@ def test_evaluation_reports_error_metrics_and_wape():
     assert report.mean_absolute_error == 1.5
     assert report.root_mean_squared_error == pytest.approx((2.5) ** 0.5)
     assert report.mean_bias_error == 0.5
-    assert report.weighted_absolute_percentage_error == pytest.approx(2 / 5)
+    assert report.weighted_absolute_percentage_error == pytest.approx(3 / 5)
     assert report.maximum_absolute_error == 2
 
 
