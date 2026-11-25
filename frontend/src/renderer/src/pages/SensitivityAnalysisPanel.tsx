@@ -47,7 +47,6 @@ export function SensitivityAnalysisPanel({
   const [metric, setMetric] = useState<SensitivityMetric>("net_cost");
   const [strategy, setStrategy] = useState<SensitivityStrategy>("gridmind");
   const [lastStrategy, setLastStrategy] = useState<SensitivityStrategy>("gridmind");
-  const currency = scenario?.currency ?? report?.currency ?? "MYR";
 
   function submit() {
     if (!scenario || loading) return;
