@@ -607,4 +607,20 @@ describe("GridMind sensitivity analysis", () => {
     expect(screen.getByTitle("grid import exceeds configured maximum")).toBeInTheDocument();
   });
 
+  it("saves a completed report to the local comparison library", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    fireEvent.change(screen.getByLabelText("Case name"), { target: { value: "Reference household" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save case" }));
+    expect(screen.getByText("Saved to your local comparison library.")).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem("gridmind.saved-scenarios.v1") ?? "[]")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Compare" }));
+    expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeInTheDocument();
+    expect(screen.getByText("Reference household")).toBeInTheDocument();
+  });
+
 });
