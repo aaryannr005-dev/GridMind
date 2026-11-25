@@ -153,7 +153,7 @@ export default function App() {
                   onReset={() => setScenarioValues(createInitialScenarioValues())}
                 />
                 : activePage === "reports"
-                  ? <ReportsPage report={report} source={reportSource} onOpenSimulation={() => setActivePage("simulation")} />
+                  ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} />
                   : activePage === "energy-map"
                     ? <EnergyMapPage />
                     : activePage === "settings"
