@@ -161,6 +161,8 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
   const [name, setName] = useState("");
   const money = (value: number | null, currency: string) => value === null ? "—" : value.toFixed(2) + " " + currency;
   const kwh = (value: number | null) => value === null ? "—" : value.toFixed(2) + " kWh";
+  const tariff = (value: number | null, currency: string) => value === null ? "—" : value.toFixed(3) + " " + currency + "/kWh";
+  const limit = (value: number | null) => value === null ? "Unlimited" : value.toFixed(2) + " kW";
   const dateLabel = (value: string) => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
@@ -191,13 +193,12 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
         <div className="scenario-comparison-table-wrap">
           <table className="scenario-comparison-table">
             <caption>Saved scenario outcomes. Costs are tariff-only modeled values; they are not measured bills.</caption>
-            <thead><tr><th scope="col">Scenario</th><th scope="col">Demand</th><th scope="col">Solar</th><th scope="col">Battery</th><th scope="col">Baseline cost</th><th scope="col">GridMind cost</th><th scope="col">Modeled savings</th><th scope="col">GridMind imports</th><th scope="col">Self-consumption</th><th scope="col">Actions</th></tr></thead>
+            <thead><tr><th scope="col">Scenario and inputs</th><th scope="col">Baseline cost</th><th scope="col">GridMind cost</th><th scope="col">Modeled savings</th><th scope="col">GridMind imports</th><th scope="col">GridMind exports</th><th scope="col">Self-consumption</th><th scope="col">Actions</th></tr></thead>
             <tbody>{savedComparisons.map((item) => <tr key={item.id}>
-              <th scope="row"><strong>{item.name}</strong><small>{dateLabel(item.savedAt)} · {item.source === "synthetic" ? "Synthetic demo" : "Custom scenario"}</small></th>
-              <td>{kwh(item.demandKwh)}</td><td>{kwh(item.solarGenerationKwh)}</td>
-              <td>{item.batteryCapacityKwh.toFixed(1)} kWh · {(item.batteryStateOfHealth * 100).toFixed(0)}% SoH</td>
+              <th scope="row"><strong>{item.name}</strong><small>{dateLabel(item.savedAt)} · {dateLabel(item.periodStart)} · {item.source === "synthetic" ? "Synthetic demo" : "Custom scenario"}</small><small>Demand {kwh(item.demandKwh)} · Solar {kwh(item.solarGenerationKwh)} · Battery {item.batteryCapacityKwh.toFixed(1)} kWh / {(item.batteryStateOfHealth * 100).toFixed(0)}% SoH</small><small>Average tariffs: import {tariff(item.averageImportTariff, item.currency)}, export {tariff(item.averageExportTariff, item.currency)} · Grid limits: import {limit(item.maxImportPowerKw)}, export {limit(item.maxExportPowerKw)}</small></th>
               <td>{money(item.baseline.netCost, item.currency)}</td><td>{money(item.gridmind?.netCost ?? null, item.currency)}</td>
               <td>{money(item.costSavings, item.currency)}</td><td>{kwh(item.gridmind?.gridImportKwh ?? null)}</td>
+              <td>{kwh(item.gridmind?.gridExportKwh ?? null)}</td>
               <td>{item.gridmind?.solarSelfConsumptionRatio === null || !item.gridmind ? "—" : (item.gridmind.solarSelfConsumptionRatio * 100).toFixed(1) + "%"}</td>
               <td><button className="text-action-button" type="button" onClick={() => onDelete(item.id)} aria-label={"Remove " + item.name + " from comparison library"}>Remove</button></td>
             </tr>)}</tbody>
