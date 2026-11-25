@@ -391,10 +391,10 @@ describe("GridMind desktop shell", () => {
 
     const soh = screen.getByRole("spinbutton", { name: "Battery state of health" });
     expect(soh).toHaveValue(1);
-    expect(screen.getByText("10.00 kWh")).toBeInTheDocument();
+    expect(screen.getAllByText("10.00 kWh")).toHaveLength(2);
 
     fireEvent.change(soh, { target: { value: "0.8" } });
-    expect(screen.getByText("8.00 kWh")).toBeInTheDocument();
+    expect(screen.getAllByText("8.00 kWh")).toHaveLength(2);
   });
 
   it("rejects invalid SoH and maximum charge combinations in the Simulation Lab", () => {
