@@ -8,7 +8,7 @@ reported as a percentage of configured battery capacity.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import html
 import json
