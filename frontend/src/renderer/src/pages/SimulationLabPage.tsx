@@ -139,7 +139,7 @@ export function SimulationLabPage({
   });
   const usableCapacityErrors = validationErrors.filter((issue) =>
     issue.toLowerCase().includes("usable battery capacity"));
-  const errorListId = "scenario-validation-errors";
+  const errorListId = "scenario-validation-errors";\n  const sensitivityScenario = validateScenarioForm(values);
   const gridImportInvalid = validationErrors.some((issue) => issue.startsWith("Grid maximum import power"));
   const gridExportInvalid = validationErrors.some((issue) => issue.startsWith("Grid maximum export power"));
   const pvInvalid = (term: string) => validationErrors.some((issue) => issue.toLowerCase().includes(term));
@@ -255,7 +255,7 @@ export function SimulationLabPage({
       </div>
     </form>
     <SensitivityAnalysisPanel
-      scenario={validateScenarioForm(values).ok ? validateScenarioForm(values).payload : null}
+      scenario={sensitivityScenario.ok ? sensitivityScenario.payload : null}
       report={sensitivityReport}
       loading={sensitivityLoading || isRunning}
       error={sensitivityError}
