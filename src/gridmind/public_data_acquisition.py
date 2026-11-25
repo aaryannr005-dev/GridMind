@@ -110,14 +110,19 @@ def download_open_dosm_csv(
             if content_type and content_type.lower() not in _ALLOWED_CONTENT_TYPES:
                 raise PublicDataDownloadError("source did not return a supported CSV content type")
             length_header = response.headers.get("Content-Length") if response.headers else None
-            if length_header:
+            declared_length = None
+            if length_header is not None:
                 try:
                     declared_length = int(length_header)
-                except ValueError as exc:
+                except (TypeError, ValueError) as exc:
                     raise PublicDataDownloadError("source returned an invalid Content-Length") from exc
                 if declared_length < 0 or declared_length > max_bytes:
                     raise PublicDataDownloadError("source file exceeds the configured download size limit")
             content = response.read(max_bytes + 1)
+            if declared_length is not None and len(content) != declared_length:
+                raise PublicDataDownloadError(
+                    "source response length did not match Content-Length (incomplete or malformed download)"
+                )
     except PublicDataDownloadError:
         raise
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
