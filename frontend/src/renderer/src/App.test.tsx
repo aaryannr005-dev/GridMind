@@ -198,6 +198,7 @@ describe("GridMind desktop shell", () => {
 
     expect(screen.getByRole("heading", { name: "Scenario record" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "How the system behaved" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Interval energy profile" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Tariff cost breakdown" })).toBeInTheDocument();
     expect(screen.getByText("Import charges")).toBeInTheDocument();
     expect(screen.getByText("Export credits")).toBeInTheDocument();
