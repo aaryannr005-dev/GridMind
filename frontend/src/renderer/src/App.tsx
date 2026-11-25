@@ -5,7 +5,7 @@ import { HomePage } from "./pages/HomePage";
 import { getNavigationItem } from "./navigation";
 import type { PageId } from "./types";
 import { demoScenario } from "./demo-scenario";
-import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../../shared/protocol";
+import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport } from "../../shared/protocol";
 import { SimulationLabPage } from "./pages/SimulationLabPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario-form";
@@ -25,7 +25,7 @@ export default function App() {
   const [report, setReport] = useState<GridMindScenarioReport | null>(null);
   const [reportSource, setReportSource] = useState<"synthetic" | "custom" | null>(null);
   const [reportScenarioValues, setReportScenarioValues] = useState<ScenarioFormValues | null>(null);
-  const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);
+  const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);\n  const [sensitivityReport, setSensitivityReport] = useState<SensitivityReport | null>(null);\n  const [sensitivityError, setSensitivityError] = useState<string | null>(null);\n  const [isSensitivityRunning, setIsSensitivityRunning] = useState(false);\n  const [sensitivityScenarioSnapshot, setSensitivityScenarioSnapshot] = useState<string | null>(null);
   const [scenarioValues, setScenarioValues] = useState<ScenarioFormValues>(createInitialScenarioValues);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +92,24 @@ export default function App() {
       setError(reason instanceof Error ? reason.message : "The local engine could not complete the scenario.");
     } finally {
       setIsRunning(false);
+    }
+  }
+
+  async function runSensitivity(payload: RunSensitivityAnalysisPayload): Promise<void> {
+    if (!window.gridmindDesktop) {
+      setSensitivityError("The local engine bridge is not available in this app window.");
+      return;
+    }
+    setIsSensitivityRunning(true);
+    setSensitivityError(null);
+    try {
+      const result = await window.gridmindDesktop.runSensitivityAnalysis(payload);
+      setSensitivityReport(result);
+      setSensitivityScenarioSnapshot(JSON.stringify(scenarioValues));
+    } catch (reason) {
+      setSensitivityError(reason instanceof Error ? reason.message : "Sensitivity analysis could not be completed.");
+    } finally {
+      setIsSensitivityRunning(false);
     }
   }
 
