@@ -663,3 +663,60 @@ class AdvancedOptimizationConstraintTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+class OptimizerBatteryEdgeCaseTests(unittest.TestCase):
+    def test_zero_charge_and_discharge_power_keeps_battery_idle(self):
+        config = GridMindConfig(BatteryConfig(2, 0, 0, initial_soc_kwh=1))
+        result = optimize_dispatch(
+            config,
+            make_inputs([1], [0], [0.25]),
+            OptimizationConfig(terminal_soc_kwh=1),
+        )
+        interval = result.intervals[0]
+        self.assertAlmostEqual(interval.battery_charge_kwh, 0.0)
+        self.assertAlmostEqual(interval.battery_discharge_kwh, 0.0)
+        self.assertAlmostEqual(interval.grid_import_kwh, 1.0)
+        self.assertAlmostEqual(interval.state_of_charge_kwh, 1.0)
+
+    def test_low_state_of_health_limits_usable_capacity(self):
+        battery = BatteryConfig(
+            2, 1, 1, initial_soc_kwh=0.1, state_of_health=0.1
+        )
+        config = GridMindConfig(battery)
+        result = optimize_dispatch(
+            config,
+            make_inputs([0], [1], [0.2]),
+            OptimizationConfig(terminal_soc_kwh=0.2, soc_step_kwh=0.05),
+        )
+        interval = result.intervals[0]
+        self.assertAlmostEqual(battery.usable_capacity_kwh, 0.2)
+        self.assertAlmostEqual(interval.state_of_charge_kwh, 0.2)
+        self.assertLessEqual(interval.state_of_charge_kwh, battery.usable_capacity_kwh)
+        self.assertAlmostEqual(interval.battery_charge_kwh, 0.1)
+
+    def test_battery_at_maximum_soc_cannot_charge_further(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 1, 1, initial_soc_kwh=1)
+        )
+        result = optimize_dispatch(
+            config,
+            make_inputs([0], [1], [0.2]),
+            OptimizationConfig(terminal_soc_kwh=1),
+        )
+        interval = result.intervals[0]
+        self.assertAlmostEqual(interval.state_of_charge_kwh, 1.0)
+        self.assertAlmostEqual(interval.battery_charge_kwh, 0.0)
+        self.assertAlmostEqual(interval.battery_discharge_kwh, 0.0)
+
+    def test_battery_at_minimum_soc_cannot_discharge(self):
+        config = GridMindConfig(
+            BatteryConfig(1, 1, 1, initial_soc_kwh=0, min_soc_kwh=0)
+        )
+        result = optimize_dispatch(
+            config,
+            make_inputs([1], [0], [0.2]),
+            OptimizationConfig(terminal_soc_kwh=0),
+        )
+        interval = result.intervals[0]
+        self.assertAlmostEqual(interval.state_of_charge_kwh, 0.0)
+        self.assertAlmostEqual(interval.battery_discharge_kwh, 0.0)
+        self.assertAlmostEqual(interval.grid_import_kwh, 1.0)
