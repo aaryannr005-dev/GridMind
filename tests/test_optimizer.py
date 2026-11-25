@@ -429,6 +429,106 @@ class OptimizerFidelityTests(unittest.TestCase):
         self.assertAlmostEqual(result.intervals[0].solar_curtailment_kwh, 1.0)
 
 
+class AdvancedOptimizationConstraintTests(unittest.TestCase):
+    def test_minimum_soc_schedule_preserves_reserve_each_interval(self):
+        config = GridMindConfig(BatteryConfig(2, 2, 2, initial_soc_kwh=1.0))
+        result = optimize_dispatch(
+            config,
+            make_inputs([1, 1, 1], [0, 0, 0], [0.2, 1.0, 1.0]),
+            OptimizationConfig(
+                soc_step_kwh=0.25,
+                terminal_soc_kwh=0.5,
+                minimum_soc_schedule_kwh=(0.75, 0.5, 0.5),
+            ),
+        )
+        self.assertTrue(all(
+            interval.state_of_charge_kwh + 1e-9 >= reserve
+            for interval, reserve in zip(result.intervals, (0.75, 0.5, 0.5))
+        ))
+        self.assertAlmostEqual(result.terminal_soc_kwh, 0.5)
+
+    def test_grid_charging_schedule_blocks_selected_intervals(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 1], [0, 0], [0.1, 1.0]),
+            OptimizationConfig(
+                soc_step_kwh=0.5,
+                grid_charging_schedule=(False, True),
+            ),
+        )
+        self.assertAlmostEqual(result.intervals[0].battery_charge_from_grid_kwh, 0.0)
+        self.assertAlmostEqual(result.intervals[1].battery_charge_from_grid_kwh, 0.0)
+        self.assertAlmostEqual(result.intervals[1].grid_import_kwh, 1.0)
+
+    def test_grid_charging_schedule_can_enable_only_a_later_cheap_window(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 1], [0, 0], [1.0, 0.1]),
+            OptimizationConfig(
+                soc_step_kwh=0.5,
+                grid_charging_schedule=(False, True),
+            ),
+        )
+        self.assertAlmostEqual(result.intervals[0].battery_charge_from_grid_kwh, 0.0)
+        self.assertAlmostEqual(result.intervals[1].battery_charge_from_grid_kwh, 1.0)
+
+    def test_rejects_reserve_schedule_with_wrong_horizon(self):
+        with self.assertRaisesRegex(ValueError, "one value per input interval"):
+            optimize_dispatch(
+                GridMindConfig(BatteryConfig(1, 1, 1)),
+                make_inputs([0, 0], [0, 0], [0, 0]),
+                OptimizationConfig(minimum_soc_schedule_kwh=(0.5,)),
+            )
+
+    def test_rejects_grid_charging_schedule_with_wrong_horizon(self):
+        with self.assertRaisesRegex(ValueError, "one value per input interval"):
+            optimize_dispatch(
+                GridMindConfig(BatteryConfig(1, 1, 1)),
+                make_inputs([0, 0], [0, 0], [0, 0]),
+                OptimizationConfig(grid_charging_schedule=(True,)),
+            )
+
+    def test_rejects_invalid_reserve_and_charging_schedule_values(self):
+        for value in ((0.5, float("nan")), (0.5, -0.1), (0.5, True)):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "minimum_soc_schedule_kwh"):
+                OptimizationConfig(minimum_soc_schedule_kwh=value)
+        with self.assertRaisesRegex(ValueError, "grid_charging_schedule values"):
+            OptimizationConfig(grid_charging_schedule=(True, 1))
+
+    def test_rejects_reserve_outside_battery_limits(self):
+        with self.assertRaisesRegex(ValueError, "within the battery SOC limits"):
+            optimize_dispatch(
+                GridMindConfig(BatteryConfig(1, 1, 1)),
+                make_inputs([0], [0], [0]),
+                OptimizationConfig(minimum_soc_schedule_kwh=(1.1,)),
+            )
+
+    def test_terminal_soc_must_satisfy_final_reserve(self):
+        with self.assertRaisesRegex(ValueError, "final scheduled minimum SOC"):
+            optimize_dispatch(
+                GridMindConfig(BatteryConfig(1, 1, 1)),
+                make_inputs([0, 0], [0, 0], [0, 0]),
+                OptimizationConfig(
+                    terminal_soc_kwh=0.25,
+                    minimum_soc_schedule_kwh=(0.5, 0.5),
+                ),
+            )
+
+    def test_global_grid_charging_disable_overrides_schedule(self):
+        config = GridMindConfig(BatteryConfig(1, 1, 1))
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 1], [0, 0], [0.1, 1.0]),
+            OptimizationConfig(
+                allow_grid_charging=False,
+                grid_charging_schedule=(True, True),
+            ),
+        )
+        self.assertTrue(all(interval.battery_charge_from_grid_kwh == 0 for interval in result.intervals))
+
+
 if __name__ == "__main__":
     unittest.main()
 
