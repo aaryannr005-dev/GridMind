@@ -21,7 +21,7 @@ The architecture is local-first and provenance-preserving. Data acquisition is s
 | Layer | Responsibility | Current implementation / boundary |
 |---|---|---|
 | Source catalogue | Stable dataset identity, publisher, source URLs, licence, coverage, frequency, units, schema and caveats | `DatasetMetadata`, `OpenDosmDataset`, `OPEN_DOSM_DATASETS` in `src/gridmind/public_data.py` |
-| Acquisition | Obtain source bytes and record retrieval context | **Not implemented.** Caller obtains the CSV separately. No network client is part of the engine. |
+| Acquisition | Obtain source bytes and record retrieval context | Phase 4B adds an explicit, bounded downloader for registered OpenDOSM CSV URLs. It returns raw bytes, SHA-256, content type and retrieval timestamp; it does not cache or persist files. |
 | Raw input | Preserve the supplied source file unchanged for reproducibility | Caller-owned input; no raw-file store is currently implemented. |
 | Parsing | Convert official-format CSV rows into typed observations without imputation or rescaling | `load_open_dosm_csv` |
 | Validation | Enforce schema, dates, categories, numeric range, uniqueness and structural completeness; identify gaps | Parser validation, `ObservationStatus`, `MissingPeriod` |
@@ -109,7 +109,7 @@ Derived summaries must identify the source observation set and any filters (cate
 Already present:
 
 - Immutable metadata and dataset registry for two OpenDOSM monthly datasets.
-- Offline CSV parsing with strict schema and row validation.
+- Offline CSV parsing with strict schema and row validation.\n- Explicit bounded acquisition for the two registered OpenDOSM CSV sources, with HTTPS host/URL restrictions, redirect restrictions, timeout and byte limits, SHA-256 identity and retrieval timestamp.
 - Source-unit preservation, blank-value retention, deterministic ordering and missing-month detection.
 - Provisional/final/unknown status classification based on the documented six-month caveat.
 - Unit tests for valid imports, provenance, gaps, blanks, zero, unknown status, malformed schemas, duplicates and numeric edge cases.
