@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -89,7 +90,7 @@ def test_evaluation_rejects_wrong_length():
     [
         (
             (
-                datetime(2025, 11, 2, 0, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York")),
+                datetime(2025, 11, 2, 0, 0, tzinfo=ZoneInfo("America/New_York")),
                 datetime(2025, 11, 2, 1, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York"), fold=0),
                 datetime(2025, 11, 2, 1, 0, tzinfo=__import__("zoneinfo").ZoneInfo("America/New_York"), fold=1),
             ),
