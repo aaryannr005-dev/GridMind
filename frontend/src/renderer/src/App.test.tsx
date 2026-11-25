@@ -586,4 +586,25 @@ describe("GridMind sensitivity analysis", () => {
     expect(screen.getAllByText("50%")).toHaveLength(2);
     expect(screen.getAllByText("150%")).toHaveLength(2);
   });
+
+  it("keeps infeasible sensitivity cases visible without presenting them as zero outcomes", async () => {
+    runSensitivityAnalysis.mockResolvedValueOnce({
+      parameter: "demand",
+      metric: "net_cost",
+      currency: "MYR",
+      baseline_value: 1.85,
+      points: [
+        { multiplier: 0.5, metric_value: 1, absolute_change: -0.85, percentage_change: -45.9, feasible: true, error: null },
+        { multiplier: 1.5, metric_value: null, absolute_change: null, percentage_change: null, feasible: false, error: "grid import exceeds configured maximum" },
+      ],
+    });
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Run sensitivity sweep" }));
+
+    expect(await screen.findByText("Infeasible")).toBeInTheDocument();
+    expect(screen.getByText(/Infeasible cases remain visible/)).toBeInTheDocument();
+    expect(screen.getByTitle("grid import exceeds configured maximum")).toBeInTheDocument();
+  });
+
 });
