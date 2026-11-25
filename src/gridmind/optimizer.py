@@ -34,6 +34,7 @@ class OptimizationConfig:
     degradation_cost_per_kwh: float = 0.0
     minimum_soc_schedule_kwh: tuple[float, ...] | None = None
     grid_charging_schedule: tuple[bool, ...] | None = None
+    baseline_soc_schedule_kwh: tuple[float, ...] | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.soc_step_kwh, bool) or not isinstance(self.soc_step_kwh, (int, float)):
@@ -72,6 +73,18 @@ class OptimizationConfig:
                 raise ValueError("grid_charging_schedule must be a non-empty tuple")
             if any(not isinstance(value, bool) for value in self.grid_charging_schedule):
                 raise ValueError("grid_charging_schedule values must be booleans")
+        if self.baseline_soc_schedule_kwh is not None:
+            if not isinstance(self.baseline_soc_schedule_kwh, tuple) or not self.baseline_soc_schedule_kwh:
+                raise ValueError("baseline_soc_schedule_kwh must be a non-empty tuple")
+            for value in self.baseline_soc_schedule_kwh:
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise ValueError("baseline_soc_schedule_kwh values must be finite nonnegative numbers")
+                try:
+                    valid = math.isfinite(value)
+                except OverflowError:
+                    valid = False
+                if not valid or value < 0:
+                    raise ValueError("baseline_soc_schedule_kwh values must be finite nonnegative numbers")
         if isinstance(self.degradation_cost_per_kwh, bool) or not isinstance(self.degradation_cost_per_kwh, (int, float)):
             raise ValueError("degradation_cost_per_kwh must be a nonnegative finite number")
         try:
@@ -294,6 +307,9 @@ def optimize_dispatch(
     Optional minimum-SOC schedules impose a hard reserve at the end of each
     interval. Optional grid-charging schedules restrict grid charging by
     interval; the global ``allow_grid_charging=False`` setting overrides them.
+    An optional baseline SOC schedule adds its feasible intermediate SOC values
+    to the search grid, preventing discretization from excluding the reference
+    dispatch when comparing costs at the same terminal SOC.
     ``OptimizationResult.total_cost`` is the tariff objective plus any
     configured degradation penalty; ``total_net_cost`` excludes that penalty.
     """
@@ -314,6 +330,7 @@ def optimize_dispatch(
         raise ValueError("terminal_soc_kwh cannot exceed battery max_soc_kwh")
 
     horizon = len(inputs.demand.points)
+    tolerance = 1e-9
     if options.minimum_soc_schedule_kwh is not None:
         if len(options.minimum_soc_schedule_kwh) != horizon:
             raise ValueError("minimum_soc_schedule_kwh must contain one value per input interval")
@@ -323,10 +340,55 @@ def optimize_dispatch(
             raise ValueError("terminal_soc_kwh cannot be below the final scheduled minimum SOC")
     if options.grid_charging_schedule is not None and len(options.grid_charging_schedule) != horizon:
         raise ValueError("grid_charging_schedule must contain one value per input interval")
+    if options.baseline_soc_schedule_kwh is not None:
+        if len(options.baseline_soc_schedule_kwh) != horizon:
+            raise ValueError("baseline_soc_schedule_kwh must contain one value per input interval")
+        if any(
+            value < battery.min_soc_kwh - tolerance or value > battery.max_soc_kwh + tolerance
+            for value in options.baseline_soc_schedule_kwh
+        ):
+            raise ValueError("baseline_soc_schedule_kwh values must be within the battery SOC limits")
 
     states = _state_levels(
         battery.min_soc_kwh, battery.max_soc_kwh, initial_soc, terminal_soc, options.soc_step_kwh
     )
+    # Preserve a known-feasible reference dispatch in the discrete state grid.
+    # Without these anchors, rounding can exclude its intermediate SOC values,
+    # allowing the approximate DP result to be more expensive than that
+    # feasible schedule even when both runs have the same terminal SOC.
+    if options.baseline_soc_schedule_kwh is not None:
+        # Reference states are mandatory: dropping one could remove the
+        # feasible baseline path and reintroduce unfair cost comparisons.
+        mandatory_states = {
+            battery.min_soc_kwh,
+            battery.max_soc_kwh,
+            initial_soc,
+            terminal_soc,
+            *options.baseline_soc_schedule_kwh,
+        }
+        if len(mandatory_states) > 1001:
+            raise ValueError(
+                "baseline_soc_schedule_kwh contains more than 1001 distinct "
+                "states; shorten the horizon to keep the optimizer within its "
+                "state limit"
+            )
+        regular_states = [value for value in states if value not in mandatory_states]
+        available_slots = 1001 - len(mandatory_states)
+        if len(regular_states) > available_slots:
+            # Keep the full feasible reference path and deterministically
+            # thin only the optional regular grid to preserve the DP safety cap.
+            if available_slots == 1:
+                sampled_regular = [regular_states[len(regular_states) // 2]]
+            elif available_slots > 1:
+                last_index = len(regular_states) - 1
+                sampled_regular = [
+                    regular_states[round(index * last_index / (available_slots - 1))]
+                    for index in range(available_slots)
+                ]
+            else:
+                sampled_regular = []
+            regular_states = sampled_regular
+        states = sorted(mandatory_states.union(regular_states))
     if len(states) > 1001:
         raise ValueError(
             "soc_step_kwh creates more than 1001 states; use a coarser step"
@@ -334,7 +396,6 @@ def optimize_dispatch(
     start_index = states.index(initial_soc)
     terminal_index = states.index(terminal_soc)
     state_count = len(states)
-    tolerance = 1e-9
 
     costs = [math.inf] * state_count
     costs[start_index] = 0.0

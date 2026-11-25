@@ -32,7 +32,10 @@ battery, tariff, and grid constraints.
   supplied to the optimiser are treated as known for the requested horizon.
   Forecast uncertainty and rolling-horizon replanning are not introduced here.
 - The SOC search remains discretised. Results are approximate at the selected
-  `soc_step_kwh`.
+  `soc_step_kwh`. When comparing against a known-feasible baseline at the same
+  terminal SOC, its interval SOC trajectory can be supplied as
+  `baseline_soc_schedule_kwh`; those points are added to the search grid so
+  discretisation cannot exclude the reference schedule.
 - These schedules are planning constraints for simulation, not commands sent
   to a physical battery or inverter.
 

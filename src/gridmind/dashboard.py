@@ -236,6 +236,9 @@ def run_hourly_scenario(
         OptimizationConfig(
             soc_step_kwh=soc_step,
             terminal_soc_kwh=baseline.intervals[-1].state_of_charge_kwh,
+            baseline_soc_schedule_kwh=tuple(
+                interval.state_of_charge_kwh for interval in baseline.intervals
+            ),
             degradation_cost_per_kwh=degradation_cost_per_kwh,
         ),
     )
