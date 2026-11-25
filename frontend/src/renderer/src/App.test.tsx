@@ -188,6 +188,10 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
 
     expect(screen.getByRole("heading", { name: "Scenario record" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How the system behaved" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Line chart comparing demand, solar generation and grid imports/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Baseline demand coverage" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dispatch comparison" })).toBeInTheDocument();
     expect(screen.getAllByText("sample-fingerprint")).toHaveLength(2);
     expect(screen.getByRole("heading", { name: "Energy and battery profile" })).toBeInTheDocument();
     expect(screen.getByText("Assumptions and model limitations")).toBeInTheDocument();
