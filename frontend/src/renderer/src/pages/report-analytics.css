@@ -115,3 +115,44 @@
 @media print {
   .scenario-comparison-reference, .comparison-insight-grid { display: none !important; }
 }
+
+
+/* Print-ready report layout: remove app controls and preserve readable sections. */
+@page { size: A4 portrait; margin: 12mm; }
+@media print {
+  .report-page-intro { margin-bottom: 8px; }
+  .report-export-bar,
+  .scenario-comparison-save,
+  .scenario-comparison-reference,
+  .comparison-insight-grid,
+  .scenario-comparison-table button,
+  .report-validation button { display: none !important; }
+  .reports-page { width: 100%; max-width: none; gap: 12px; color: #111827; }
+  .reports-page .results-section,
+  .reports-page .report-identity,
+  .reports-page .report-outcome,
+  .reports-page .report-financial-breakdown,
+  .reports-page .report-visual-analytics,
+  .reports-page .report-validation { break-inside: auto; page-break-inside: auto; }
+  .reports-page .report-chart-panel,
+  .reports-page .report-financial-summary article,
+  .reports-page .report-financial-table-wrap,
+  .reports-page .report-check-grid > div { break-inside: avoid; page-break-inside: avoid; }
+  .reports-page table { width: 100%; min-width: 0 !important; }
+  .reports-page .scenario-comparison-table-wrap,
+  .reports-page .report-financial-table-wrap { overflow: visible; }
+  .reports-page .scenario-comparison-table th,
+  .reports-page .scenario-comparison-table td,
+  .reports-page .report-financial-table th,
+  .reports-page .report-financial-table td { white-space: normal; overflow-wrap: anywhere; }
+  .reports-page .scenario-comparison-table th,
+  .reports-page .scenario-comparison-table td { padding: 5px 4px; font-size: 7px; }
+  .reports-page .report-trend-chart { max-height: 190px; }
+  .reports-page .report-chart-panel { box-shadow: none; }
+  .reports-page .report-financial-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .reports-page .comparison-note,
+  .reports-page .report-financial-footnote,
+  .reports-page .report-financial-objective-note { color: #374151; }
+  .reports-page a { color: inherit; text-decoration: none; }
+  .reports-page h1, .reports-page h2, .reports-page h3 { break-after: avoid; page-break-after: avoid; }
+}
