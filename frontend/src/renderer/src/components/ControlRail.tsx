@@ -28,7 +28,7 @@ interface ControlRailProps {
   onSpeedChange: Dispatch<SetStateAction<number>>;
   values: ScenarioFormValues;
   onValuesChange: (values: ScenarioFormValues) => void;
-  onRunScenario: (payload: RunHourlyScenarioPayload) => void;
+  onRunScenario: (payload: RunHourlyScenarioPayload, snapshot: ScenarioFormValues) => void;
   isRunning: boolean;
 }
 
@@ -81,7 +81,7 @@ export function ControlRail({
     }
     setRailErrors([]);
     onValuesChange(updated);
-    onRunScenario(validation.payload);
+    onRunScenario(validation.payload, updated);
   }
 
   function parseSeries(series: string[], name: string): number[] | null {
