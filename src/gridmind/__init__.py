@@ -37,7 +37,8 @@ from .public_data import (
 )
 
 __all__ = [
-    "BatteryConfig", "DemandSeries", "GridConfig", "GridMindConfig", "InputData",\n    "ForecastEvaluation", "ForecastMethod", "ForecastResult", "evaluate_forecast", "forecast_series",
+    "BatteryConfig", "DemandSeries", "GridConfig", "GridMindConfig", "InputData",
+    "ForecastEvaluation", "ForecastMethod", "ForecastResult", "evaluate_forecast", "forecast_series",
     "IntervalResult", "OptimizationConfig", "OptimizationResult",
     "OptimizedInterval", "PvConfig", "SimulationResult", "SolarSeries", "TariffSeries",
     "SimulationMetrics", "StrategyComparison", "TimeSeriesPoint",
