@@ -537,14 +537,15 @@ describe("GridMind desktop shell", () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     let scheduledRevoke: (() => void) | undefined;
-    const timeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation((callback) => {
-      if (typeof callback === "function") scheduledRevoke = callback as () => void;
+    const timeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation((callback, delay) => {
+      if (delay === 1000 && typeof callback === "function") scheduledRevoke = callback as () => void;
       return 0;
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(revokeObjectURL).not.toHaveBeenCalled();
+    timeoutSpy.mockRestore();
     const csvBlob = createObjectURL.mock.calls[0][0] as Blob;
     const csvText = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
