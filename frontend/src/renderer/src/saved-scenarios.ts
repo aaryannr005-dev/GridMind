@@ -3,7 +3,7 @@ import type { EngineMetrics, GridMindScenarioReport } from "../../shared/protoco
 const STORAGE_KEY = "gridmind.saved-scenarios.v1";
 export const MAX_SAVED_SCENARIOS = 8;
 
-export interface SavedScenario {
+export interface SavedScenarioMetrics {\n  total_demand_kwh: number;\n  total_solar_generation_kwh: number;\n  solar_self_consumption_ratio: number | null;\n  grid_import_kwh: number;\n  grid_export_kwh: number;\n  battery_charge_kwh: number;\n  battery_discharge_kwh: number;\n  import_cost: number;\n  export_credit: number;\n  net_cost: number;\n}\n\nexport interface SavedScenario {
   id: string;
   name: string;
   saved_at: string;
