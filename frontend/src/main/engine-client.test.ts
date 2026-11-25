@@ -107,7 +107,7 @@ describe("EngineClient", () => {
           percentage_change: (multiplier - 1) * 100, feasible: true, error: null,
         })),
       },
-    })}\\n`);
+    })}\n`);
     await expect(result).resolves.toMatchObject({ parameter: "demand", baseline_value: 2 });
     client.close();
   });
