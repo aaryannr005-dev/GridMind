@@ -114,7 +114,7 @@ def run_sensitivity_analysis(
 ) -> SensitivityReport:
     """Scale one input dimension and compare results with the baseline.
 
-    Multipliers must be positive finite numbers. A multiplier of 1.0 denotes
+    Multipliers must be nonnegative finite numbers. A multiplier of 1.0 denotes
     the unmodified scenario. If optimization_options is supplied, every case
     uses the optimizer; otherwise every case uses the self-consumption-first
     simulator. Infeasible perturbed scenarios are retained as explicit failed
@@ -131,18 +131,18 @@ def run_sensitivity_analysis(
     if optimization_options is not None and not isinstance(optimization_options, OptimizationConfig):
         raise ValueError("optimization_options must be an OptimizationConfig or None")
     if not isinstance(multipliers, Sequence) or isinstance(multipliers, (str, bytes)) or not multipliers:
-        raise ValueError("multipliers must be a non-empty sequence of positive finite numbers")
+        raise ValueError("multipliers must be a non-empty sequence of nonnegative finite numbers")
 
     normalized: list[float] = []
     for multiplier in multipliers:
         if isinstance(multiplier, bool) or not isinstance(multiplier, (int, float)):
-            raise ValueError("multipliers must contain positive finite numbers")
+            raise ValueError("multipliers must contain nonnegative finite numbers")
         try:
             finite = math.isfinite(multiplier)
         except OverflowError:
             finite = False
-        if not finite or multiplier <= 0:
-            raise ValueError("multipliers must contain positive finite numbers")
+        if not finite or multiplier < 0:
+            raise ValueError("multipliers must contain nonnegative finite numbers")
         normalized.append(float(multiplier))
     if len(set(normalized)) != len(normalized):
         raise ValueError("multipliers must be unique")
