@@ -198,7 +198,7 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
               <td>{item.batteryCapacityKwh.toFixed(1)} kWh · {(item.batteryStateOfHealth * 100).toFixed(0)}% SoH</td>
               <td>{money(item.baseline.netCost, item.currency)}</td><td>{money(item.gridmind?.netCost ?? null, item.currency)}</td>
               <td>{money(item.costSavings, item.currency)}</td><td>{kwh(item.gridmind?.gridImportKwh ?? null)}</td>
-              <td>{item.gridmind ? (item.gridmind.solarSelfConsumptionRatio * 100).toFixed(1) + "%" : "—"}</td>
+              <td>{item.gridmind?.solarSelfConsumptionRatio === null || !item.gridmind ? "—" : (item.gridmind.solarSelfConsumptionRatio * 100).toFixed(1) + "%"}</td>
               <td><button className="text-action-button" type="button" onClick={() => onDelete(item.id)} aria-label={"Remove " + item.name + " from comparison library"}>Remove</button></td>
             </tr>)}</tbody>
           </table>
