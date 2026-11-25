@@ -146,6 +146,7 @@ export function ReportsPage({ report, source, scenarioSnapshot, resultsAreStale,
               {[
                 ["Energy balance", report.baseline.energy_balance_valid && (report.gridmind?.energy_balance_valid ?? true)],
                 ["Battery constraints", report.baseline.battery_constraints_valid && (report.gridmind?.battery_constraints_valid ?? true)],
+                ["Grid constraints", report.baseline.grid_constraints_valid && (report.gridmind?.grid_constraints_valid ?? true)],
                 ["Tariff calculations", report.baseline.tariff_costs_valid && (report.gridmind?.tariff_costs_valid ?? true)],
               ].map(([label, valid]) => <div key={String(label)} data-valid={Boolean(valid)}><span>{label}</span><strong>{valid ? "Passed" : "Check required"}</strong></div>)}
             </div>
