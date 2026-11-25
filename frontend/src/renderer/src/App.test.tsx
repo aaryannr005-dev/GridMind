@@ -147,8 +147,8 @@ describe("GridMind desktop shell", () => {
     await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
     expect(await screen.findByText("Synthetic demonstration run")).toBeInTheDocument();
     expect(screen.getAllByText("Completed")).toHaveLength(2);
-    expect(screen.getByText("24 × 60 min")).toBeInTheDocument();
-    expect(screen.getByText("Self-consumption first")).toBeInTheDocument();
+    expect(screen.getAllByText("24 × 60 min")).toHaveLength(2);
+    expect(screen.getAllByText("Self-consumption first")).toHaveLength(2);
   });
   });
 
