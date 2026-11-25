@@ -123,13 +123,18 @@ def _hourly(rows: tuple[IntervalReportRow, ...], interval_minutes: int) -> tuple
         return None
     if any(row.timestamp.minute % interval_minutes or row.timestamp.second or row.timestamp.microsecond for row in rows):
         return None
-    grouped: dict[datetime, list[IntervalReportRow]] = {}
+    grouped: dict[tuple[object, int, timedelta], list[IntervalReportRow]] = {}
     for row in rows:
-        utc_timestamp = row.timestamp.astimezone(timezone.utc)
-        utc_hour = utc_timestamp.replace(minute=0, second=0, microsecond=0)
-        grouped.setdefault(utc_hour, []).append(row)
+        local_hour = row.timestamp.replace(minute=0, second=0, microsecond=0)
+        offset = row.timestamp.utcoffset()
+        if offset is None:
+            return None
+        # Include the UTC offset so the two occurrences of a repeated DST
+        # hour remain separate while half-hour-offset zones group locally.
+        key = (local_hour.date(), local_hour.hour, offset)
+        grouped.setdefault(key, []).append(row)
     return tuple(HourlyReportRow(
-        hour_start=hour.astimezone(items[0].timestamp.tzinfo),
+        hour_start=items[0].timestamp.replace(minute=0, second=0, microsecond=0),
         interval_count=len(items),
         demand_kwh=sum(item.demand_kwh for item in items),
         solar_generation_kwh=sum(item.solar_generation_kwh for item in items),
@@ -140,7 +145,7 @@ def _hourly(rows: tuple[IntervalReportRow, ...], interval_minutes: int) -> tuple
         grid_export_kwh=sum(item.grid_export_kwh for item in items),
         state_of_charge_percent=items[-1].state_of_charge_percent,
         net_cost=sum(item.net_cost for item in items),
-    ) for hour, items in sorted(grouped.items()))
+    ) for _, items in sorted(grouped.items()))
 
 
 def _comparison_rows(comparison: StrategyComparison) -> tuple[ComparisonRow, ...]:
