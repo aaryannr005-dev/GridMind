@@ -539,7 +539,7 @@ describe("GridMind desktop shell", () => {
     let scheduledRevoke: (() => void) | undefined;
     const timeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation((callback, delay) => {
       if (delay === 1000 && typeof callback === "function") scheduledRevoke = callback as () => void;
-      return 0;
+      return 0 as unknown as ReturnType<typeof window.setTimeout>;
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
