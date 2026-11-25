@@ -50,6 +50,11 @@ export default function App() {
     setStrategy("baseline");
   }, [report]);
 
+  function updateScenarioValues(values: ScenarioFormValues): void {
+    setScenarioValues(values);
+    setError(null);
+  }
+
   function updateTheme(next: ThemeName): void {
     setTheme(next);
     applyTheme(next);
@@ -105,6 +110,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <main className="main-panel">
         <TopNavTabs activePage={activePage} onNavigate={setActivePage} />
         <div className="workspace-frame">
@@ -118,7 +124,7 @@ export default function App() {
               <button type="button" onClick={() => setActivePage("simulation")}>Review and rerun</button>
             </div>
           )}
-          <div className="page-content">
+          <div className="page-content" id="main-content" tabIndex={-1}>
             {activePage === "home"
               ? <HomePage
                 displayName={displayName}
@@ -131,7 +137,7 @@ export default function App() {
                 onRunScenario={(payload, snapshot) => { void runScenario(payload, "custom", snapshot); }}
                 dashboardPreferences={dashboardPreferences}
                 scenarioValues={scenarioValues}
-                onValuesChange={setScenarioValues}
+                onValuesChange={updateScenarioValues}
                 playhead={playhead}
                 onPlayheadChange={setPlayhead}
                 playing={playing}
@@ -148,9 +154,9 @@ export default function App() {
                   reportSource={reportSource}
                   isRunning={isRunning}
                   error={error}
-                  onValuesChange={setScenarioValues}
+                  onValuesChange={updateScenarioValues}
                   onRun={(payload) => { void runScenario(payload, "custom", scenarioValues); }}
-                  onReset={() => setScenarioValues(createInitialScenarioValues())}
+                  onReset={() => updateScenarioValues(createInitialScenarioValues())}
                 />
                 : activePage === "reports"
                   ? <ReportsPage report={report} source={reportSource} scenarioSnapshot={reportScenarioValues} resultsAreStale={resultsAreStale} onOpenSimulation={() => setActivePage("simulation")} />

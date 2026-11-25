@@ -74,7 +74,8 @@ function exportCsv(report: GridMindScenarioReport): void {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  // Keep the object URL alive briefly so the browser can begin the download.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function format(value: number | undefined, digits = 2): string {

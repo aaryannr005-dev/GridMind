@@ -134,6 +134,23 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 button:disabled, input:disabled, select:disabled, textarea:disabled {
   cursor: not-allowed;
 }
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 20;
+  padding: 9px 13px;
+  transform: translateY(calc(-100% - 12px));
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-m);
+  color: var(--on-accent);
+  background: var(--accent-btn);
+  box-shadow: var(--shadow-raised);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.skip-link:focus-visible { transform: translateY(0); }
 ::selection { color: var(--text-strong); background: var(--accent-dim); }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
