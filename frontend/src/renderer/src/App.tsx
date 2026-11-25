@@ -24,6 +24,8 @@ export default function App() {
   const [profileSaved, setProfileSaved] = useState(true);
   const [report, setReport] = useState<GridMindScenarioReport | null>(null);
   const [reportSource, setReportSource] = useState<"synthetic" | "custom" | null>(null);
+  const [reportScenarioValues, setReportScenarioValues] = useState<ScenarioFormValues | null>(null);
+  const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);
   const [scenarioValues, setScenarioValues] = useState<ScenarioFormValues>(createInitialScenarioValues);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,8 @@ export default function App() {
   const [speed, setSpeed] = useState(1);
   const [strategy, setStrategy] = useState<StrategyId>("baseline");
   const page = getNavigationItem(activePage);
+  const resultsAreStale = report !== null && reportScenarioValues !== null
+    && JSON.stringify(scenarioValues) !== JSON.stringify(reportScenarioValues);
 
   useEffect(() => {
     applyTheme(theme);
@@ -59,7 +63,11 @@ export default function App() {
     setProfileSaved(saved);
   }
 
-  async function runScenario(payload: RunHourlyScenarioPayload, source: "synthetic" | "custom"): Promise<void> {
+  async function runScenario(
+    payload: RunHourlyScenarioPayload,
+    source: "synthetic" | "custom",
+    valuesSnapshot: ScenarioFormValues = scenarioValues,
+  ): Promise<void> {
     if (!window.gridmindDesktop) {
       setError("The local engine bridge is not available in this app window.");
       return;
@@ -70,6 +78,11 @@ export default function App() {
       const result = await window.gridmindDesktop.runHourlyScenario(payload);
       setReport(result);
       setReportSource(source);
+      setReportScenarioValues(JSON.parse(JSON.stringify(valuesSnapshot)) as ScenarioFormValues);
+      setReportTariffs({
+        importRates: [...payload.import_rate_per_kwh],
+        exportRates: [...payload.export_rate_per_kwh],
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The local engine could not complete the scenario.");
     } finally {
@@ -99,6 +112,12 @@ export default function App() {
             <span className="crumb-label">{page.eyebrow} · {page.label}</span>
             <ThemeToggle theme={theme} onChange={updateTheme} />
           </div>
+          {resultsAreStale && !isRunning && (
+            <div className="stale-results-banner" role="status">
+              <div><strong>Scenario inputs changed since the latest run.</strong><span>The results and charts still represent the previous input set. Run the scenario again to refresh them.</span></div>
+              <button type="button" onClick={() => setActivePage("simulation")}>Review and rerun</button>
+            </div>
+          )}
           <div className="page-content">
             {activePage === "home"
               ? <HomePage
@@ -107,8 +126,8 @@ export default function App() {
                 reportSource={reportSource}
                 isRunning={isRunning}
                 error={error}
-                onRunDemo={() => { void runScenario(demoScenario, "synthetic"); }}
-                onRunScenario={(payload) => { void runScenario(payload, "custom"); }}
+                onRunDemo={() => { void runScenario(demoScenario, "synthetic", scenarioValues); }}
+                onRunScenario={(payload, snapshot) => { void runScenario(payload, "custom", snapshot); }}
                 dashboardPreferences={dashboardPreferences}
                 scenarioValues={scenarioValues}
                 onValuesChange={setScenarioValues}
@@ -129,7 +148,7 @@ export default function App() {
                   isRunning={isRunning}
                   error={error}
                   onValuesChange={setScenarioValues}
-                  onRun={(payload) => { void runScenario(payload, "custom"); }}
+                  onRun={(payload) => { void runScenario(payload, "custom", scenarioValues); }}
                   onReset={() => setScenarioValues(createInitialScenarioValues())}
                 />
                 : activePage === "reports"
