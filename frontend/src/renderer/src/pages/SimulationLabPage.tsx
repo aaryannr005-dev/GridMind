@@ -113,7 +113,7 @@ export function SimulationLabPage({
     setValidationErrors([]);
   }
 
-  function updatePv(key: keyof ScenarioFormValues["pv"], value: string | boolean) {
+  function updatePv<K extends keyof ScenarioFormValues["pv"]>(key: K, value: ScenarioFormValues["pv"][K]) {
     onValuesChange({ ...values, pv: { ...values.pv, [key]: value } });
     setValidationErrors([]);
   }
