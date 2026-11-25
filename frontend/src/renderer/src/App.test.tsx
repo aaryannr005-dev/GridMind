@@ -59,10 +59,10 @@ const report = {
   currency: "MYR",
   battery_capacity_kwh: 10,
   baseline: metrics,
-  gridmind: { ...metrics, net_cost: 1.2, grid_import_kwh: 6 },
+  gridmind: { ...metrics, import_cost: 1.35, net_cost: 1.2, grid_import_kwh: 6 },
   comparison: {
     baseline: metrics,
-    optimized: { ...metrics, net_cost: 1.2, grid_import_kwh: 6 },
+    optimized: { ...metrics, import_cost: 1.35, net_cost: 1.2, grid_import_kwh: 6 },
     cost_savings: 0.65,
     cost_savings_percent: 35,
     grid_import_reduction_kwh: 2,
@@ -198,6 +198,11 @@ describe("GridMind desktop shell", () => {
 
     expect(screen.getByRole("heading", { name: "Scenario record" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "How the system behaved" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tariff cost breakdown" })).toBeInTheDocument();
+    expect(screen.getByText("Import charges")).toBeInTheDocument();
+    expect(screen.getByText("Export credits")).toBeInTheDocument();
+    expect(screen.getByText("Net tariff cost")).toBeInTheDocument();
+    expect(screen.getByText("1.35 MYR")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /Line chart comparing demand, solar generation and grid imports/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Baseline demand coverage" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dispatch comparison" })).toBeInTheDocument();
@@ -536,6 +541,12 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(revokeObjectURL).not.toHaveBeenCalled();
+    const csvBlob = createObjectURL.mock.calls[0][0] as Blob;
+    const csvText = await csvBlob.text();
+    expect(csvText).toContain("baseline_import_cost,2");
+    expect(csvText).toContain("baseline_export_credit,0.15");
+    expect(csvText).toContain("gridmind_import_cost,1.35");
+    expect(csvText).toContain("baseline_import_cost");
 
     vi.advanceTimersByTime(1000);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:gridmind-report");
