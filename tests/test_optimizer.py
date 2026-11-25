@@ -32,6 +32,30 @@ def make_inputs(demand, solar, import_rates, export_rates=None):
 
 
 class OptimizerTests(unittest.TestCase):
+    def test_baseline_soc_anchors_respect_optimizer_state_limit(self):
+        config = GridMindConfig(
+            BatteryConfig(
+                capacity_kwh=1000,
+                max_charge_power_kw=1000,
+                max_discharge_power_kw=1000,
+                initial_soc_kwh=500,
+            )
+        )
+        baseline_soc = (500.1, 500.2, 500.3)
+        result = optimize_dispatch(
+            config,
+            make_inputs([0, 0, 0], [0, 0, 0], [0, 0, 0]),
+            OptimizationConfig(
+                soc_step_kwh=1,
+                terminal_soc_kwh=baseline_soc[-1],
+                baseline_soc_schedule_kwh=baseline_soc,
+            ),
+        )
+        self.assertEqual(
+            tuple(item.state_of_charge_kwh for item in result.intervals),
+            baseline_soc,
+        )
+
     def test_seeded_baseline_soc_path_is_never_worse_without_degradation_penalty(self):
         config = GridMindConfig(
             BatteryConfig(
