@@ -542,7 +542,12 @@ describe("GridMind desktop shell", () => {
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(revokeObjectURL).not.toHaveBeenCalled();
     const csvBlob = createObjectURL.mock.calls[0][0] as Blob;
-    const csvText = await csvBlob.text();
+    const csvText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(csvBlob);
+    });
     expect(csvText).toContain("baseline_import_cost,2");
     expect(csvText).toContain("baseline_export_credit,0.15");
     expect(csvText).toContain("gridmind_import_cost,1.35");
