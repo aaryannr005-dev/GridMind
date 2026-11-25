@@ -150,15 +150,15 @@ def run_sensitivity_analysis(
     if parameter is SensitivityParameter.EXPORT_TARIFF and inputs.tariffs.export_rates is None:
         raise ValueError("export_tariff sensitivity requires an export tariff series")
 
-    def evaluate(scenario_inputs: InputData):
-        result = (
+    def run_scenario(scenario_inputs: InputData):
+        return (
             optimize_dispatch(config, scenario_inputs, optimization_options)
             if optimization_options is not None
             else simulate(config, scenario_inputs)
         )
-        return calculate_metrics(result, config, scenario_inputs)
 
-    baseline_metrics = evaluate(inputs)
+    baseline_result = run_scenario(inputs)
+    baseline_metrics = calculate_metrics(baseline_result, config, inputs)
     baseline_value = _metric_value(baseline_metrics, metric)
     points: list[SensitivityPoint] = []
 
@@ -173,25 +173,31 @@ def run_sensitivity_analysis(
             continue
         try:
             scenario_inputs = _scaled_inputs(inputs, parameter, multiplier)
-            scenario_metrics = evaluate(scenario_inputs)
-            value = _metric_value(scenario_metrics, metric)
-            change = value - baseline_value if value is not None and baseline_value is not None else None
-            percentage = (
-                100.0 * change / abs(baseline_value)
-                if change is not None and baseline_value not in (None, 0.0)
-                else None
-            )
-            points.append(SensitivityPoint(
-                multiplier=multiplier, metric_value=value,
-                absolute_change=change, percentage_change=percentage,
-                feasible=True,
-            ))
+            scenario_result = run_scenario(scenario_inputs)
         except ValueError as exc:
             points.append(SensitivityPoint(
                 multiplier=multiplier, metric_value=None,
                 absolute_change=None, percentage_change=None,
                 feasible=False, error=str(exc),
             ))
+            continue
+
+        # Metric validation is deliberately outside the infeasibility handler:
+        # a broken result/metric contract must fail the analysis, not be hidden
+        # as an ordinary infeasible stress scenario.
+        scenario_metrics = calculate_metrics(scenario_result, config, scenario_inputs)
+        value = _metric_value(scenario_metrics, metric)
+        change = value - baseline_value if value is not None and baseline_value is not None else None
+        percentage = (
+            100.0 * change / abs(baseline_value)
+            if change is not None and baseline_value not in (None, 0.0)
+            else None
+        )
+        points.append(SensitivityPoint(
+            multiplier=multiplier, metric_value=value,
+            absolute_change=change, percentage_change=percentage,
+            feasible=True,
+        ))
 
     return SensitivityReport(
         parameter=parameter, metric=metric, currency=config.currency,
