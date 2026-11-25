@@ -66,6 +66,7 @@ export interface EngineMetrics {
   net_cost: number;
   energy_balance_valid: boolean;
   battery_constraints_valid: boolean;
+  grid_constraints_valid: boolean;
   tariff_costs_valid: boolean;
   max_load_balance_error_kwh: number;
   max_solar_balance_error_kwh: number;
@@ -252,7 +253,7 @@ export function isGridMindScenarioReport(value: unknown): value is GridMindScena
         "max_solar_balance_error_kwh", "max_soc_balance_error_kwh",
       ])
       && nullableFiniteFields(metrics, ["solar_self_consumption_ratio"])
-      && ["energy_balance_valid", "battery_constraints_valid", "tariff_costs_valid"]
+      && ["energy_balance_valid", "battery_constraints_valid", "grid_constraints_valid", "tariff_costs_valid"]
         .every((key) => typeof metrics[key] === "boolean");
   };
   const isInterval = (interval: unknown): interval is EngineInterval => {

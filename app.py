@@ -181,12 +181,14 @@ if run is not None:
         st.write(
             f"Baseline: energy balance {report.baseline.energy_balance_valid}; "
             f"battery limits {report.baseline.battery_constraints_valid}; "
+            f"grid limits {report.baseline.grid_constraints_valid}; "
             f"tariff calculations {report.baseline.tariff_costs_valid}."
         )
         if report.gridmind is not None:
             st.write(
                 f"GridMind: energy balance {report.gridmind.energy_balance_valid}; "
                 f"battery limits {report.gridmind.battery_constraints_valid}; "
+                f"grid limits {report.gridmind.grid_constraints_valid}; "
                 f"tariff calculations {report.gridmind.tariff_costs_valid}."
             )
         st.write("**Assumptions**")

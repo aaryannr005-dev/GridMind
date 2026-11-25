@@ -5,7 +5,7 @@ const metrics = {
   direct_solar_consumption_kwh: 0, solar_to_battery_kwh: 0, solar_self_consumption_kwh: 0,
   solar_self_consumption_ratio: null, grid_import_kwh: 24, grid_export_kwh: 0, battery_charge_kwh: 0,
   battery_discharge_kwh: 0, initial_soc_kwh: 0, final_soc_kwh: 0, import_cost: 4.8, export_credit: 0,
-  net_cost: 4.8, energy_balance_valid: true, battery_constraints_valid: true, tariff_costs_valid: true,
+  net_cost: 4.8, energy_balance_valid: true, battery_constraints_valid: true, grid_constraints_valid: true, tariff_costs_valid: true,
   max_load_balance_error_kwh: 0, max_solar_balance_error_kwh: 0, max_soc_balance_error_kwh: 0,
 };
 
