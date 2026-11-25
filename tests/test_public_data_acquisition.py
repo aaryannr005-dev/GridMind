@@ -116,3 +116,15 @@ class PublicDataAcquisitionTests(TestCase):
             download_open_dosm_csv(ELECTRICITY_CONSUMPTION, timeout_seconds=0)
         with self.assertRaisesRegex(ValueError, "max_bytes"):
             download_open_dosm_csv(ELECTRICITY_CONSUMPTION, max_bytes=0)
+
+    @patch("gridmind.public_data_acquisition.build_opener")
+    def test_rejects_truncated_response_when_content_length_is_larger(self, build_opener_mock):
+        response = self.make_response(b"x" * 5, length=10)
+        opener = MagicMock()
+        opener.open.return_value = response
+        build_opener_mock.return_value = opener
+
+        with self.assertRaisesRegex(PublicDataDownloadError, "incomplete or malformed download"):
+            download_open_dosm_csv(ELECTRICITY_CONSUMPTION, max_bytes=20)
+
+        response.read.assert_called_once_with(21)
