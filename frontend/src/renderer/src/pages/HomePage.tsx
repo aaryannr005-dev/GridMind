@@ -90,27 +90,66 @@ export function HomePage({
   const strategyIntervals = strategy === "gridmind" && report?.gridmind_intervals
     ? report.gridmind_intervals
     : report?.baseline_intervals ?? [];
+  const scenarioStatus = isRunning ? "Running" : report ? "Completed" : "Not started";
+  const strategyLabel = strategy === "gridmind" ? "Cost-optimised" : "Self-consumption first";
+  const intervalLabel = report
+    ? `${report.interval_count} × ${report.interval_minutes} min`
+    : `${scenarioValues.demand_kwh.length} hourly intervals`;
 
   return (
-    <div className="page-stack">
-      <section className="hero-band">
-        <div className="hero-copy">
-          <h1>Welcome back, {displayName}. Here's your energy overview.</h1>
-          <p className="hero-lede">
-            The workspace sends your scenario to the local Python engine and steps through
-            24 hourly intervals in Malaysia time, comparing self-consumption dispatch with
-            cost-optimised dispatch interval by interval.
-          </p>
+    <div className="page-stack dashboard-page">
+      <section className="dashboard-heading">
+        <div className="dashboard-heading-copy">
+          <span className="eyebrow">YOUR ENERGY WORKSPACE</span>
+          <h1>Welcome back, {displayName}.</h1>
+          <p>Explore how solar, storage, tariffs and grid limits shape a household energy system.</p>
         </div>
-        <div className="hero-run">
+        <div className="dashboard-heading-actions">
+          <span className={`dashboard-run-state${isRunning ? " is-running" : report ? " is-complete" : ""}`}>
+            <i aria-hidden="true" />{scenarioStatus}
+          </span>
           <button className="primary-button" type="button" onClick={onRunDemo} disabled={isRunning}>
             {isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running engine…</> : report ? "Run sample again" : "Run sample scenario"}
           </button>
-          <p>Runs the bundled synthetic example: a fixed demand profile with clear-sky solar. No results are prefilled or reused between runs.</p>
         </div>
       </section>
+
+      <section className="dashboard-summary" aria-label="Current workspace summary">
+        <article className="dashboard-summary-card">
+          <span className="dashboard-summary-label">LATEST RUN</span>
+          <strong>{scenarioStatus}</strong>
+          <small>{report ? (reportSource === "custom" ? "Custom scenario run" : "Synthetic demonstration run") : "No results have been generated yet"}</small>
+        </article>
+        <article className="dashboard-summary-card">
+          <span className="dashboard-summary-label">TIME HORIZON</span>
+          <strong>{intervalLabel}</strong>
+          <small>{report ? "Recorded model intervals" : "Ready for a one-day model"}</small>
+        </article>
+        <article className="dashboard-summary-card">
+          <span className="dashboard-summary-label">ACTIVE STRATEGY</span>
+          <strong>{strategyLabel}</strong>
+          <small>{strategy === "gridmind" ? "Optimised dispatch, when available" : "Solar serves demand first"}</small>
+        </article>
+      </section>
+
       {error && <FeedbackState kind="warning" title="Scenario could not be run">{error + " You can try again; no new results were shown."}</FeedbackState>}
       {isRunning && !report && <FeedbackState kind="info" title="Running locally">The Python engine is calculating the baseline and GridMind comparison. This may take a few seconds.</FeedbackState>}
+
+      {!report && !isRunning && (
+        <section className="dashboard-start-card">
+          <div className="dashboard-start-copy">
+            <span className="eyebrow">GET STARTED</span>
+            <h2>Your first energy scenario starts here.</h2>
+            <p>Use the controls below to shape a household energy model, or run the bundled example to see the full workflow.</p>
+          </div>
+          <ol className="dashboard-start-steps">
+            <li><span>01</span><div><strong>Set your assumptions</strong><small>Adjust grid limits, solar conditions, load profile, tariffs and battery health.</small></div></li>
+            <li><span>02</span><div><strong>Run the model</strong><small>The local Python engine evaluates the baseline and optimised dispatch.</small></div></li>
+            <li><span>03</span><div><strong>Explore the results</strong><small>Inspect power flow, interval charts, cost comparisons and model limitations.</small></div></li>
+          </ol>
+        </section>
+      )}
+
       <div className="workspace">
         <ControlRail
           report={report}
@@ -130,12 +169,12 @@ export function HomePage({
         <div className="workspace-main">
           <section className="flow-panel" aria-label="Power flow diagram">
             <div className="flow-head">
-              <h2>Power flow</h2>
+              <div><span className="eyebrow">SYSTEM OVERVIEW</span><h2>Power flow</h2></div>
               <span className="subtle-label">{report ? `${report.interval_count} ENGINE INTERVALS · ${report.currency}` : "AWAITING SCENARIO"}</span>
             </div>
             {report
               ? <PowerFlowDiagram intervals={strategyIntervals} intervalMinutes={report.interval_minutes} playhead={playhead} playing={playing} />
-              : <p className="flow-placeholder">Run a scenario to populate the flow diagram with engine results.</p>}
+              : <div className="dashboard-flow-empty"><span className="dashboard-flow-icon" aria-hidden="true">↗</span><div><strong>Energy flows will appear here</strong><p>Run a scenario to see how solar generation, household demand, the battery and the grid interact.</p></div></div>}
           </section>
           {report && reportSource && dashboardPreferences.showCharts && (
             <ChartWorkspace
@@ -148,7 +187,7 @@ export function HomePage({
           )}
           {report && reportSource
             ? <ScenarioResults report={report} source={reportSource} preferences={dashboardPreferences} />
-            : <section className="empty-dashboard"><span className="empty-icon">⌁</span><div><h2>No scenario results yet</h2><p>Run the synthetic example, apply a load profile or enter a scenario in the Simulation Lab to see engine-generated charts and comparisons.</p></div></section>}
+            : <section className="empty-dashboard"><div><span className="eyebrow">READY WHEN YOU ARE</span><h2>No scenario results yet</h2><p>Run the synthetic example, apply a load profile or enter a scenario in the Simulation Lab. Results will appear here once the local engine completes a run.</p></div></section>}
         </div>
       </div>
     </div>
