@@ -124,6 +124,7 @@ export default function App() {
                 displayName={displayName}
                 report={report}
                 reportSource={reportSource}
+                reportTariffs={reportTariffs}
                 isRunning={isRunning}
                 error={error}
                 onRunDemo={() => { void runScenario(demoScenario, "synthetic", scenarioValues); }}
