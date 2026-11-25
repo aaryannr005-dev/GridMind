@@ -43,6 +43,7 @@ class SimulationMetrics:
     net_cost: float
     energy_balance_valid: bool
     battery_constraints_valid: bool
+    grid_constraints_valid: bool
     tariff_costs_valid: bool
     max_load_balance_error_kwh: float
     max_solar_balance_error_kwh: float
@@ -164,7 +165,7 @@ def calculate_metrics(
     import_cost = export_credit = 0.0
     degradation_total = 0.0
     max_load_error = max_solar_error = max_soc_error = 0.0
-    energy_balance_valid = battery_constraints_valid = tariff_costs_valid = True
+    energy_balance_valid = battery_constraints_valid = grid_constraints_valid = tariff_costs_valid = True
     current_soc = battery.initial_soc_kwh
     if isinstance(result, OptimizationResult):
         battery_constraints_valid &= math.isclose(
@@ -216,15 +217,40 @@ def calculate_metrics(
         max_load_error = max(max_load_error, load_error)
         max_solar_error = max(max_solar_error, solar_error)
         max_soc_error = max(max_soc_error, soc_error)
-        energy_balance_valid &= load_error <= _TOLERANCE and solar_error <= _TOLERANCE
+        nonnegative_flows = all(value >= -_TOLERANCE for value in (
+            interval.solar_to_load_kwh, charge, discharge,
+            interval.grid_import_kwh, interval.grid_export_kwh,
+            curtailment, charge_solar, charge_grid,
+        ))
+        solar_allocation_valid = interval.solar_to_load_kwh <= (
+            min(interval.demand_kwh, interval.solar_generation_kwh) + _TOLERANCE
+        )
+        energy_balance_valid &= (
+            nonnegative_flows and solar_allocation_valid
+            and load_error <= _TOLERANCE and solar_error <= _TOLERANCE
+        )
         battery_constraints_valid &= (
             battery.min_soc_kwh - _TOLERANCE <= interval.state_of_charge_kwh
             <= battery.max_soc_kwh + _TOLERANCE
+            and charge >= -_TOLERANCE
+            and discharge >= -_TOLERANCE
             and charge <= battery.max_charge_power_kw * interval_hours + _TOLERANCE
             and discharge <= battery.max_discharge_power_kw * interval_hours + _TOLERANCE
             and charge_source_error <= _TOLERANCE
             and not (charge > _TOLERANCE and discharge > _TOLERANCE)
             and soc_error <= _TOLERANCE
+        )
+        grid_constraints_valid &= (
+            (
+                config.grid.max_import_power_kw is None
+                or interval.grid_import_kwh
+                <= config.grid.max_import_power_kw * interval_hours + _TOLERANCE
+            )
+            and (
+                config.grid.max_export_power_kw is None
+                or interval.grid_export_kwh
+                <= config.grid.max_export_power_kw * interval_hours + _TOLERANCE
+            )
         )
         tariff_costs_valid &= (
             math.isclose(interval.import_cost, expected_import_cost, rel_tol=0.0, abs_tol=_TOLERANCE)
@@ -275,6 +301,7 @@ def calculate_metrics(
         net_cost=import_cost - export_credit,
         energy_balance_valid=energy_balance_valid,
         battery_constraints_valid=battery_constraints_valid,
+        grid_constraints_valid=grid_constraints_valid,
         tariff_costs_valid=tariff_costs_valid,
         max_load_balance_error_kwh=max_load_error,
         max_solar_balance_error_kwh=max_solar_error,
