@@ -3,6 +3,7 @@ import type { GridMindScenarioReport, EngineInterval } from "../../../shared/pro
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
 import type { ScenarioFormValues } from "../scenario-form";
+import { MAX_SAVED_COMPARISONS } from "../scenario-comparisons";
 import type { SavedScenarioComparison } from "../scenario-comparisons";
 import "./report-analytics.css";
 
@@ -176,13 +177,13 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
     <section className="results-section scenario-comparison-library" aria-labelledby="scenario-comparison-title">
       <div className="section-heading">
         <div><span className="eyebrow">PHASE 6B · COMPARE RUNS</span><h2 id="scenario-comparison-title">Scenario comparison library</h2></div>
-        <span className="subtle-label">{savedComparisons.length}/5 SAVED</span>
+        <span className="subtle-label">{savedComparisons.length}/{MAX_SAVED_COMPARISONS} SAVED</span>
       </div>
       <p className="comparison-note">Save completed engine reports as compact snapshots, then compare their modeled costs and energy outcomes. Saved snapshots stay on this device.</p>
       {report && <div className="scenario-comparison-save">
         <label htmlFor="scenario-comparison-name">Name this completed run</label>
         <div><input id="scenario-comparison-name" type="text" maxLength={36} value={name} onChange={(event) => setName(event.target.value)} placeholder={"Scenario " + (savedComparisons.length + 1)} />
-          <button className="primary-button" type="button" onClick={save} disabled={savedComparisons.length >= 5}>Save comparison snapshot</button></div>
+          <button className="primary-button" type="button" onClick={save} disabled={savedComparisons.length >= MAX_SAVED_COMPARISONS}>Save comparison snapshot</button></div>
         <small>This saves the latest completed engine result and its input summary, not any unsaved edits in the Simulation Lab.</small>
       </div>}
       {storageError && <p className="form-field-error" role="alert">GridMind could not save comparison snapshots in local storage. Check available storage and try again.</p>}
