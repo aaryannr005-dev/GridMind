@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .public_data import OPEN_DOSM_DATASETS, OpenDosmDataset
@@ -46,12 +46,12 @@ class _SameHostHttpsRedirectHandler(HTTPRedirectHandler):
     """Permit redirects only to HTTPS URLs on the registered storage host."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        parsed = urlparse(newurl)
+        resolved_url = urljoin(req.full_url, newurl)\n        parsed = urlparse(resolved_url)
         if parsed.scheme != "https" or parsed.hostname != _ALLOWED_HOST:
             raise PublicDataDownloadError("dataset redirect left the approved HTTPS source host")
         if parsed.username or parsed.password or parsed.port not in (None, 443):
             raise PublicDataDownloadError("dataset redirect used an unsupported URL authority")
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        return super().redirect_request(req, fp, code, msg, headers, resolved_url)
 
 
 def download_open_dosm_csv(
