@@ -24,7 +24,7 @@ describe("Phase 4E public data experience", () => {
     fireEvent.change(filter, { target: { value: "supply" } });
     expect(screen.getByTestId("dataset-electricity_supply")).toBeInTheDocument();
     expect(screen.queryByTestId("dataset-electricity_consumption")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("1 of 2 datasets shown");
+    expect(screen.getAllByRole("status").some((element) => element.textContent?.includes("1 of 2 datasets shown"))).toBe(true);
 
     fireEvent.change(filter, { target: { value: "all" } });
     expect(screen.getByTestId("dataset-electricity_supply")).toBeInTheDocument();
