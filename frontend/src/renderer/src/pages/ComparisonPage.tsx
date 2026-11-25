@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   MAX_SAVED_SCENARIOS,
   removeSavedScenario,
@@ -24,7 +24,7 @@ const metrics: { key: MetricKey; label: string; unit: "money" | "energy" | "rati
 ];
 
 function valueFor(scenario: SavedScenario, key: MetricKey): number | null {
-  const value = scenario.gridmind?.[key] ?? (scenario.gridmind === null ? scenario.baseline[key] : null);
+  const value = scenario.gridmind === null ? scenario.baseline[key] : scenario.gridmind[key];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
