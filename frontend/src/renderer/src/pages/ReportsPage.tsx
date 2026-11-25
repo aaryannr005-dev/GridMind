@@ -166,7 +166,7 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
   const kwh = (value: number | null) => value === null ? "—" : value.toFixed(2) + " kWh";
   const tariff = (value: number | null, currency: string) => value === null ? "—" : value.toFixed(3) + " " + currency + "/kWh";
   const limit = (value: number | null) => value === null ? "Unlimited" : value.toFixed(2) + " kW";
-  const deltaMoney = (value: number | null, baseline: number | null, currency: string) => value === null || baseline === null ? "—" : (value - baseline > 0 ? "+" : value - baseline < 0 ? "−" : "") + Math.abs(value - baseline).toFixed(2) + " " + currency;
+  const deltaMoney = (value: number | null, baseline: number | null, currency: string, baselineCurrency: string | null) => currency !== baselineCurrency ? "N/A · currency" : value === null || baseline === null ? "—" : (value - baseline > 0 ? "+" : value - baseline < 0 ? "−" : "") + Math.abs(value - baseline).toFixed(2) + " " + currency;
   const deltaKwh = (value: number | null, baseline: number | null) => value === null || baseline === null ? "—" : (value - baseline > 0 ? "+" : value - baseline < 0 ? "−" : "") + Math.abs(value - baseline).toFixed(2) + " kWh";
   const deltaRatio = (value: number | null, baseline: number | null) => value === null || baseline === null ? "—" : (value - baseline > 0 ? "+" : value - baseline < 0 ? "−" : "") + Math.abs((value - baseline) * 100).toFixed(1) + " pp";
   const dateLabel = (value: string) => {
@@ -200,19 +200,19 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
           <select id="scenario-comparison-reference" value={reference?.id ?? ""} onChange={(event) => setReferenceId(event.target.value)}>
             {savedComparisons.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
-          <span>All deltas below are current scenario minus the selected reference.</span>
+          <span>All deltas are current scenario minus the reference. Net-cost deltas require matching currencies.</span>
         </div>}
         <div className="comparison-insight-grid">
           {[
-            { title: "GridMind net tariff cost", metric: (item: SavedScenarioComparison) => item.gridmind?.netCost ?? null, max: Math.max(0.000001, ...savedComparisons.map((item) => Math.abs(item.gridmind?.netCost ?? 0))), format: (value: number) => money(value, savedComparisons[0].currency) },
-            { title: "GridMind grid imports", metric: (item: SavedScenarioComparison) => item.gridmind?.gridImportKwh ?? null, max: Math.max(0.000001, ...savedComparisons.map((item) => Math.abs(item.gridmind?.gridImportKwh ?? 0))), format: (value: number) => kwh(value) },
+            { title: "GridMind net tariff cost", metric: (item: SavedScenarioComparison) => item.currency === reference?.currency ? item.gridmind?.netCost ?? null : null, max: Math.max(0.000001, ...savedComparisons.filter((item) => item.currency === reference?.currency).map((item) => Math.abs(item.gridmind?.netCost ?? 0))), format: (value: number, item: SavedScenarioComparison) => money(value, item.currency) },
+            { title: "GridMind grid imports", metric: (item: SavedScenarioComparison) => item.gridmind?.gridImportKwh ?? null, max: Math.max(0.000001, ...savedComparisons.map((item) => Math.abs(item.gridmind?.gridImportKwh ?? 0))), format: (value: number, _item: SavedScenarioComparison) => kwh(value) },
           ].map((chart) => <div className="comparison-insight-card" key={chart.title}>
             <h3>{chart.title}</h3>
             {savedComparisons.map((item) => {
               const value = chart.metric(item);
               return <div className="comparison-insight-row" key={item.id}>
                 <span>{item.name}</span><div className="comparison-insight-track"><span style={{ width: value === null ? "0%" : Math.max(2, Math.abs(value) / chart.max * 100) + "%" }} /></div>
-                <strong>{value === null ? "—" : chart.format(value)}</strong>
+                <strong>{value === null ? "—" : chart.format(value, item)}</strong>
               </div>;
             })}
           </div>)}
@@ -226,7 +226,7 @@ function ScenarioComparisonLibrary({ report, savedComparisons, storageError, onS
               <th scope="row"><strong>{item.name}</strong><small>{dateLabel(item.savedAt)} · {dateLabel(item.periodStart)} · {item.source === "synthetic" ? "Synthetic demo" : "Custom scenario"}</small><small>Demand {kwh(item.demandKwh)} · Solar {kwh(item.solarGenerationKwh)} · Battery {item.batteryCapacityKwh.toFixed(1)} kWh / {(item.batteryStateOfHealth * 100).toFixed(0)}% SoH</small><small>Average tariffs: import {tariff(item.averageImportTariff, item.currency)}, export {tariff(item.averageExportTariff, item.currency)} · Grid limits: import {limit(item.maxImportPowerKw)}, export {limit(item.maxExportPowerKw)}</small></th>
               <td>{money(item.baseline.netCost, item.currency)}</td><td>{money(item.gridmind?.netCost ?? null, item.currency)}</td>
               <td>{money(item.costSavings, item.currency)}</td>
-              <td>{deltaMoney(item.gridmind?.netCost ?? null, reference?.gridmind?.netCost ?? null, item.currency)}</td>
+              <td>{deltaMoney(item.gridmind?.netCost ?? null, reference?.gridmind?.netCost ?? null, item.currency, reference?.currency ?? null)}</td>
               <td>{kwh(item.gridmind?.gridImportKwh ?? null)}</td>
               <td>{deltaKwh(item.gridmind?.gridImportKwh ?? null, reference?.gridmind?.gridImportKwh ?? null)}</td>
               <td>{kwh(item.gridmind?.gridExportKwh ?? null)}</td>
