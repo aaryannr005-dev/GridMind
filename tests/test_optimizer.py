@@ -465,14 +465,15 @@ class AdvancedOptimizationConstraintTests(unittest.TestCase):
         config = GridMindConfig(BatteryConfig(1, 1, 1))
         result = optimize_dispatch(
             config,
-            make_inputs([0, 1], [0, 0], [1.0, 0.1]),
+            make_inputs([0, 0, 1], [0, 0, 0], [1.0, 0.1, 1.0]),
             OptimizationConfig(
                 soc_step_kwh=0.5,
-                grid_charging_schedule=(False, True),
+                grid_charging_schedule=(False, True, False),
             ),
         )
         self.assertAlmostEqual(result.intervals[0].battery_charge_from_grid_kwh, 0.0)
         self.assertAlmostEqual(result.intervals[1].battery_charge_from_grid_kwh, 1.0)
+        self.assertAlmostEqual(result.intervals[2].battery_discharge_kwh, 1.0)
 
     def test_rejects_reserve_schedule_with_wrong_horizon(self):
         with self.assertRaisesRegex(ValueError, "one value per input interval"):
