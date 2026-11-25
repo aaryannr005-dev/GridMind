@@ -27,6 +27,10 @@ export interface SavedScenarioComparison {
   solarGenerationKwh: number;
   batteryCapacityKwh: number;
   batteryStateOfHealth: number;
+  averageImportTariff: number | null;
+  averageExportTariff: number | null;
+  maxImportPowerKw: number | null;
+  maxExportPowerKw: number | null;
   baseline: ComparisonMetrics;
   gridmind: ComparisonMetrics | null;
   costSavings: number | null;
@@ -59,6 +63,10 @@ export function isSavedScenarioComparison(value: unknown): value is SavedScenari
     && finite(item.solarGenerationKwh) && item.solarGenerationKwh >= 0
     && finite(item.batteryCapacityKwh) && item.batteryCapacityKwh > 0
     && finite(item.batteryStateOfHealth) && item.batteryStateOfHealth > 0 && item.batteryStateOfHealth <= 1
+    && (item.averageImportTariff === null || (finite(item.averageImportTariff) && item.averageImportTariff >= 0))
+    && (item.averageExportTariff === null || (finite(item.averageExportTariff) && item.averageExportTariff >= 0))
+    && (item.maxImportPowerKw === null || (finite(item.maxImportPowerKw) && item.maxImportPowerKw >= 0))
+    && (item.maxExportPowerKw === null || (finite(item.maxExportPowerKw) && item.maxExportPowerKw >= 0))
     && isMetrics(item.baseline)
     && (item.gridmind === null || isMetrics(item.gridmind))
     && (item.costSavings === null || finite(item.costSavings));
@@ -86,6 +94,19 @@ export function saveScenarioComparisons(items: SavedScenarioComparison[]): boole
   } catch {
     return false;
   }
+}
+
+function averageSeries(values: string[] | undefined): number | null {
+  if (!values || values.length === 0) return null;
+  const numbers = values.map(Number);
+  if (!numbers.every((value) => Number.isFinite(value))) return null;
+  return numbers.reduce((total, value) => total + value, 0) / numbers.length;
+}
+
+function optionalLimit(value: string | undefined): number | null {
+  if (!value?.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function metricSnapshot(report: GridMindScenarioReport["baseline"]): ComparisonMetrics {
@@ -123,6 +144,10 @@ export function createScenarioComparison(
       ? batteryCapacityKwh : report.battery_capacity_kwh,
     batteryStateOfHealth: Number.isFinite(stateOfHealth) && stateOfHealth > 0 && stateOfHealth <= 1
       ? stateOfHealth : 1,
+    averageImportTariff: averageSeries(scenario?.import_rate_per_kwh),
+    averageExportTariff: averageSeries(scenario?.export_rate_per_kwh),
+    maxImportPowerKw: optionalLimit(scenario?.grid.max_import_power_kw),
+    maxExportPowerKw: optionalLimit(scenario?.grid.max_export_power_kw),
     baseline: metricSnapshot(report.baseline),
     gridmind: report.gridmind ? metricSnapshot(report.gridmind) : null,
     costSavings: report.comparison?.cost_savings ?? null,
