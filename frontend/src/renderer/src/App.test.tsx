@@ -439,7 +439,8 @@ describe("GridMind desktop shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
     fireEvent.click(screen.getByRole("tab", { name: "Tariffs" }));
-    fireEvent.click(screen.getByText("View chart data"));
+    const tariffPanel = screen.getByRole("tabpanel", { name: "Tariffs" });
+    fireEvent.click(tariffPanel.querySelector("summary")!);
     expect(screen.getByRole("row", { name: /00:00/ })).toHaveTextContent("0.22");
     expect(screen.getByRole("row", { name: /00:00/ })).not.toHaveTextContent("0.99");
   });
