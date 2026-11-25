@@ -4,6 +4,7 @@ import { delimiter, join } from "node:path";
 import {
   decodeEngineResponse,
   isRunHourlyScenarioPayload,
+  isRunSensitivityAnalysisPayload,
   isSensitivityReport,
   type EngineResponse,
   type GridMindScenarioReport,
@@ -50,10 +51,6 @@ export class EngineClient {
     if (!isRunHourlyScenarioPayload(payload)) {
       return Promise.reject(new EngineClientError("INVALID_REQUEST", "Scenario request has an invalid shape"));
     }
-    if (this.pending.size >= MAX_PENDING_REQUESTS) {
-      return Promise.reject(new EngineClientError("ENGINE_BUSY", "The engine is handling other scenarios; try again shortly"));
-    }
-
     return this.sendRequest("run_hourly_scenario", payload).then((result) => {
       if (!result || typeof result !== "object" || !("scenario_fingerprint" in result)) {
         throw new EngineClientError("ENGINE_PROTOCOL_ERROR", "The engine returned an invalid scenario report");
@@ -63,13 +60,7 @@ export class EngineClient {
   }
 
   runSensitivityAnalysis(payload: RunSensitivityAnalysisPayload): Promise<SensitivityReport> {
-    if (!isRunHourlyScenarioPayload(payload.scenario) || !Array.isArray(payload.multipliers)
-      || payload.multipliers.length < 2 || payload.multipliers.length > 9
-      || !payload.multipliers.every((item) => typeof item === "number" && Number.isFinite(item) && item >= 0)
-      || new Set(payload.multipliers).size !== payload.multipliers.length
-      || !["demand", "solar_generation", "import_tariff", "export_tariff"].includes(payload.parameter)
-      || !["net_cost", "grid_import_kwh", "grid_export_kwh", "solar_self_consumption_ratio"].includes(payload.metric)
-      || !["baseline", "gridmind"].includes(payload.strategy)) {
+    if (!isRunSensitivityAnalysisPayload(payload)) {
       return Promise.reject(new EngineClientError("INVALID_REQUEST", "Sensitivity request has an invalid shape"));
     }
     return this.sendRequest("run_sensitivity_analysis", payload).then((result) => {
