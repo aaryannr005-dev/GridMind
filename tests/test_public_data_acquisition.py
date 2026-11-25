@@ -78,7 +78,7 @@ class PublicDataAcquisitionTests(TestCase):
         with self.assertRaisesRegex(PublicDataDownloadError, "empty file"):
             download_open_dosm_csv(ELECTRICITY_CONSUMPTION)
 
-    def test_rejects_unregistered_dataset_and_invalid_limits(self):
+    def test_redirect_handler_allows_same_host_relative_redirects(self):\n        request = Request("https://storage.data.gov.my/energy/source.csv")\n        redirected = _SameHostHttpsRedirectHandler().redirect_request(\n            request, None, 302, "Found", {}, "/energy/new.csv"\n        )\n        self.assertEqual(redirected.full_url, "https://storage.data.gov.my/energy/new.csv")\n\n    def test_redirect_handler_rejects_foreign_hosts(self):\n        request = Request("https://storage.data.gov.my/energy/source.csv")\n        with self.assertRaisesRegex(PublicDataDownloadError, "approved HTTPS source host"):\n            _SameHostHttpsRedirectHandler().redirect_request(\n                request, None, 302, "Found", {}, "https://example.com/steal.csv"\n            )\n\n    def test_rejects_unregistered_dataset_and_invalid_limits(self):
         with self.assertRaisesRegex(ValueError, "registered"):
             download_open_dosm_csv(object())
         with self.assertRaisesRegex(ValueError, "timeout_seconds"):
