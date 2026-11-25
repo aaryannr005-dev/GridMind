@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { GridMindScenarioReport, RunHourlyScenarioPayload } from "../../../shared/protocol";
+import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport } from "../../../shared/protocol";
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
-import { SliderNumberField } from "../components/SliderNumberField";
+import { SliderNumberField } from "../components/SliderNumberField";\nimport { SensitivityAnalysisPanel } from "./SensitivityAnalysisPanel";
 import {
   validateScenarioForm,
   type BatteryFormKey,
@@ -254,6 +254,14 @@ export function SimulationLabPage({
         <div className="form-actions"><button className="primary-button" type="submit" disabled={isRunning}>{isRunning ? <><span className="button-spinner" aria-hidden="true" /> Running Python engine…</> : "Validate and run scenario"}</button><button className="secondary-button" type="button" onClick={() => { onReset(); setValidationErrors([]); }} disabled={isRunning}>Reset sample</button></div>
       </div>
     </form>
+    <SensitivityAnalysisPanel
+      scenario={validateScenarioForm(values).ok ? validateScenarioForm(values).payload : null}
+      report={sensitivityReport}
+      loading={sensitivityLoading || isRunning}
+      error={sensitivityError}
+      stale={sensitivityStale}
+      onRun={onRunSensitivity}
+    />
     {isRunning && <FeedbackState kind="info" title="Running locally">The Python engine is calculating the baseline and GridMind cost comparison for this scenario.</FeedbackState>}
     {report && reportSource && <section className="form-results" aria-label="Latest completed scenario results"><div className="section-heading"><div><span className="eyebrow">LATEST RUN</span><h2>Scenario results</h2></div><span className="subtle-label">{reportSource === "custom" ? "USER INPUTS" : "SYNTHETIC EXAMPLE"}</span></div><ScenarioResults report={report} source={reportSource} /></section>}
   </div>;
