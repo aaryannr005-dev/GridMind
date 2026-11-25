@@ -104,6 +104,7 @@ export default function App() {
       setSensitivityError("The local engine bridge is not available in this app window.");
       return;
     }
+    const valuesSnapshot = JSON.stringify(scenarioValues);
     setIsSensitivityRunning(true);
     setSensitivityError(null);
     setSensitivityReport(null);
@@ -111,7 +112,7 @@ export default function App() {
     try {
       const result = await window.gridmindDesktop.runSensitivityAnalysis(payload);
       setSensitivityReport(result);
-      setSensitivityScenarioSnapshot(JSON.stringify(scenarioValues));
+      setSensitivityScenarioSnapshot(valuesSnapshot);
     } catch (reason) {
       setSensitivityError(reason instanceof Error ? reason.message : "Sensitivity analysis could not be completed.");
     } finally {
