@@ -45,7 +45,7 @@ export function SensitivityAnalysisPanel({
 }: SensitivityAnalysisPanelProps) {
   const [parameter, setParameter] = useState<SensitivityParameter>("demand");
   const [metric, setMetric] = useState<SensitivityMetric>("net_cost");
-  const [strategy, setStrategy] = useState<SensitivityStrategy>("gridmind");
+  const [strategy, setStrategy] = useState<SensitivityStrategy>("gridmind");\n  const [lastStrategy, setLastStrategy] = useState<SensitivityStrategy>("gridmind");
   const currency = scenario?.currency ?? report?.currency ?? "MYR";
 
   function submit() {
@@ -92,7 +92,7 @@ export function SensitivityAnalysisPanel({
       <div className="sensitivity-summary">
         <div><span>BASELINE VALUE</span><strong>{formatValue(report.baseline_value, report.metric, report.currency)}</strong></div>
         <div><span>INPUT DIMENSION</span><strong>{parameterLabels[report.parameter]}</strong></div>
-        <div><span>DISPATCH METHOD</span><strong>{strategy === "gridmind" ? "GridMind optimiser" : "Self-consumption-first"}</strong></div>
+        <div><span>DISPATCH METHOD</span><strong>{lastStrategy === "gridmind" ? "GridMind optimiser" : "Self-consumption-first"}</strong></div>
       </div>
       <div className="sensitivity-results" role="img" aria-label={`Sensitivity results for ${parameterLabels[report.parameter]} and ${metricLabels[report.metric]}`}>
         {report.points.map((point) => <div className="sensitivity-point" key={point.multiplier}>
