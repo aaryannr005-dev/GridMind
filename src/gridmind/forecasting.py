@@ -123,9 +123,13 @@ def forecast_series(
         predictions = [mean] * horizon_intervals
 
     step = timedelta(minutes=interval_minutes)
-    last_timestamp = history[-1].timestamp
+    last_timestamp_utc = history[-1].timestamp.astimezone(timezone.utc)
+    output_timezone = history[-1].timestamp.tzinfo
     points = tuple(
-        TimeSeriesPoint(last_timestamp + step * (index + 1), value)
+        TimeSeriesPoint(
+            (last_timestamp_utc + step * (index + 1)).astimezone(output_timezone),
+            value,
+        )
         for index, value in enumerate(predictions)
     )
     return ForecastResult(

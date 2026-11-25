@@ -13,7 +13,7 @@ GridMind is a Python energy simulation and decision-support project. It provides
 
 ## Requirements
 
-Python 3.10 or newer. The package has no runtime dependencies.
+Python 3.10 or newer. The package declares `tzdata` as a runtime dependency for consistent timezone database availability; the Streamlit dashboard remains optional.
 
 ## Install and test
 
