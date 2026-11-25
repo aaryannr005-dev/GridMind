@@ -79,7 +79,7 @@ function DatasetCard({ dataset }: { dataset: PublicDataset }) {
         <a className="secondary-button" href={dataset.catalogueUrl} target="_blank" rel="noreferrer">{dataset.kind === "supply" ? "Explore current statistics and download data" : "Source catalogue"} <span aria-hidden="true">↗</span></a>
         <a className="secondary-button" href={dataset.csvUrl} target="_blank" rel="noreferrer">Download CSV <span aria-hidden="true">↗</span></a>
       </div>
-      <p className="data-attribution">Attribution: Department of Statistics Malaysia (DOSM), OpenDOSM, “{dataset.title}”, data as of 30 June 2026. Licensed under <a href={licenceUrl} target="_blank" rel="noreferrer">CC BY 4.0</a>. Underlying source agencies include TNB, Sabah Electricity, Sarawak Energy and the Energy Commission.</p>
+      <p className="data-attribution">Attribution: Department of Statistics Malaysia (DOSM), OpenDOSM, “{dataset.title}”, data as of 30 June 2026. Licensed under CC BY 4.0. Underlying source agencies include TNB, Sabah Electricity, Sarawak Energy and the Energy Commission.</p>
     </article>
   );
 }
@@ -106,7 +106,7 @@ export function EnergyMapPage() {
 
       <section className="results-section data-catalogue-section" aria-labelledby="data-catalogue-title">
         <div className="section-heading"><div><span className="eyebrow">OPENDOSM · DEPARTMENT OF STATISTICS MALAYSIA</span><h2 id="data-catalogue-title">Malaysian electricity data catalogue</h2></div><span className="subtle-label">2 VERIFIED SOURCES</span></div>
-        <p className="data-catalogue-intro">Browse the registered public datasets. OpenDOSM publishes monthly electricity supply by sector under CC BY 4.0. Metadata was checked on 25 November 2026; source observation coverage and publisher update dates are shown separately.</p>
+        <p className="data-catalogue-intro">Browse the registered public datasets. OpenDOSM publishes monthly electricity supply by sector under <a href={licenceUrl} target="_blank" rel="noreferrer">CC BY 4.0</a>. Metadata was checked on 25 November 2026; source observation coverage and publisher update dates are shown separately.</p>
         <div className="data-catalogue-controls">
           <label className="data-filter-field">Search datasets, variables or categories
             <input type="search" value={datasetSearch} onChange={(event) => setDatasetSearch(event.target.value)} placeholder="e.g. domestic, supply, exports" />
