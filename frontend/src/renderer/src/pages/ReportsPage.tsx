@@ -167,7 +167,7 @@ function ReportVisualAnalytics({ report }: { report: GridMindScenarioReport }) {
         <span className="subtle-label">{report.interval_count} INTERVALS</span>
       </div>
       <div className="report-chart-panel">
-        <div className="report-chart-heading"><div><h3>Hourly energy profile</h3><p>Actual interval values returned by the simulation engine</p></div><span>kWh / interval</span></div>
+        <div className="report-chart-heading"><div><h3>Interval energy profile</h3><p>Actual interval values returned by the simulation engine</p></div><span>kWh / interval</span></div>
         <div className="report-chart-legend">
           <span><i className="demand" />Demand</span><span><i className="solar" />Solar generation</span>
           <span><i className="baseline" />Baseline grid import</span>
