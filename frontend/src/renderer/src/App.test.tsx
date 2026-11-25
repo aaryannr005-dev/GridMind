@@ -546,6 +546,8 @@ describe("GridMind desktop shell", () => {
     expect(csvText).toContain("baseline_import_cost,2");
     expect(csvText).toContain("baseline_export_credit,0.15");
     expect(csvText).toContain("gridmind_import_cost,1.35");
+    expect(csvText).toContain("baseline_net_cost,1.85");
+    expect(csvText).toContain("modeled_cost_savings,0.65");
     expect(csvText).toContain("baseline_import_cost");
 
     vi.advanceTimersByTime(1000);
