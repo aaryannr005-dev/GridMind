@@ -90,6 +90,7 @@
   .scenario-comparison-table-wrap { overflow: visible; }
   .scenario-comparison-table { min-width: 0; }
   .scenario-comparison-table th, .scenario-comparison-table td { padding: 5px 4px; font-size: 7px; }
+  .scenario-comparison-table th:nth-child(5), .scenario-comparison-table td:nth-child(5), .scenario-comparison-table th:nth-child(7), .scenario-comparison-table td:nth-child(7), .scenario-comparison-table th:nth-child(10), .scenario-comparison-table td:nth-child(10), .scenario-comparison-table th:nth-child(11), .scenario-comparison-table td:nth-child(11) { display: none; }
 }
 
 
