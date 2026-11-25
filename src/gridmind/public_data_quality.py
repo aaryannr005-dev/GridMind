@@ -5,10 +5,10 @@ repair, interpolate, reconcile, or promote national aggregates into scenarios.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
-from .public_data import MonthlyObservation, ObservationStatus, OpenDosmSeries
+from .public_data import MonthlyObservation, MissingPeriod, ObservationStatus, OpenDosmSeries
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +52,7 @@ class CategoryQuality:
 
 @dataclass(frozen=True, slots=True)
 class DataQualityReport:
-    """Immutable quality summary tied to one imported source series."""
+    """Immutable quality summary tied to the exact imported source series."""
 
     dataset_id: str
     categories: tuple[CategoryQuality, ...]
@@ -64,6 +64,8 @@ class DataQualityReport:
     provisional_count: int
     unknown_count: int
     warnings: tuple[str, ...]
+    _source_observations: tuple[MonthlyObservation, ...] = field(repr=False)
+    _source_missing_periods: tuple[MissingPeriod, ...] = field(repr=False)
 
     def usable_observations(
         self,
@@ -75,6 +77,11 @@ class DataQualityReport:
             raise ValueError("series must be an OpenDosmSeries")
         if series.metadata.dataset_id != self.dataset_id:
             raise ValueError("quality report belongs to a different dataset")
+        if (
+            series.observations != self._source_observations
+            or series.missing_periods != self._source_missing_periods
+        ):
+            raise ValueError("quality report belongs to a different imported series")
         if not isinstance(policy, DataQualityPolicy):
             raise ValueError("policy must be a DataQualityPolicy")
 
@@ -155,4 +162,6 @@ def evaluate_data_quality(series: OpenDosmSeries) -> DataQualityReport:
         provisional_count=provisional,
         unknown_count=unknown,
         warnings=tuple(warnings),
+        _source_observations=series.observations,
+        _source_missing_periods=series.missing_periods,
     )
