@@ -41,9 +41,39 @@ export interface RunHourlyScenarioRequest {
   payload: RunHourlyScenarioPayload;
 }
 
+export type SensitivityParameter = "demand" | "solar_generation" | "import_tariff" | "export_tariff";
+export type SensitivityMetric = "net_cost" | "grid_import_kwh" | "grid_export_kwh" | "solar_self_consumption_ratio";
+export type SensitivityStrategy = "baseline" | "gridmind";
+
+export interface RunSensitivityAnalysisPayload {
+  scenario: RunHourlyScenarioPayload;
+  parameter: SensitivityParameter;
+  multipliers: number[];
+  metric: SensitivityMetric;
+  strategy: SensitivityStrategy;
+}
+
+export interface SensitivityPoint {
+  multiplier: number;
+  metric_value: number | null;
+  absolute_change: number | null;
+  percentage_change: number | null;
+  feasible: boolean;
+  error: string | null;
+}
+
+export interface SensitivityReport {
+  parameter: SensitivityParameter;
+  metric: SensitivityMetric;
+  currency: string;
+  baseline_value: number | null;
+  points: SensitivityPoint[];
+}
+
 export interface DesktopBridge {
   platform: string;
   runHourlyScenario(payload: RunHourlyScenarioPayload): Promise<GridMindScenarioReport>;
+  runSensitivityAnalysis(payload: RunSensitivityAnalysisPayload): Promise<SensitivityReport>;
 }
 
 export interface EngineMetrics {
@@ -136,7 +166,7 @@ export interface GridMindScenarioReport {
 export type EngineSuccess = {
   id: string;
   ok: true;
-  result: GridMindScenarioReport;
+  result: GridMindScenarioReport | SensitivityReport;
 };
 
 export type EngineFailure = {
@@ -307,12 +337,28 @@ export function isGridMindScenarioReport(value: unknown): value is GridMindScena
   return true;
 }
 
+export function isSensitivityReport(value: unknown): value is SensitivityReport {
+  if (!isRecord(value) || !["demand", "solar_generation", "import_tariff", "export_tariff"].includes(String(value.parameter))
+    || !["net_cost", "grid_import_kwh", "grid_export_kwh", "solar_self_consumption_ratio"].includes(String(value.metric))
+    || typeof value.currency !== "string"
+    || !(value.baseline_value === null || isFiniteNumber(value.baseline_value))
+    || !Array.isArray(value.points) || value.points.length < 2 || value.points.length > 9) return false;
+  return value.points.every((point) => isRecord(point)
+    && isFiniteNumber(point.multiplier) && point.multiplier >= 0
+    && (point.metric_value === null || isFiniteNumber(point.metric_value))
+    && (point.absolute_change === null || isFiniteNumber(point.absolute_change))
+    && (point.percentage_change === null || isFiniteNumber(point.percentage_change))
+    && typeof point.feasible === "boolean"
+    && (point.error === null || typeof point.error === "string")
+    && (point.feasible ? point.error === null : point.metric_value === null && typeof point.error === "string"));
+}
+
 export function decodeEngineResponse(value: unknown): EngineResponse {
   if (!isRecord(value) || typeof value.ok !== "boolean") {
     throw new Error("The engine returned a malformed response");
   }
   if (value.ok) {
-    if (typeof value.id !== "string" || !isGridMindScenarioReport(value.result)) {
+    if (typeof value.id !== "string" || (!isGridMindScenarioReport(value.result) && !isSensitivityReport(value.result))) {
       throw new Error("The engine returned an invalid scenario report");
     }
     return value as unknown as EngineSuccess;
