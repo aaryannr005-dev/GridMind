@@ -458,4 +458,33 @@ describe("GridMind desktop shell", () => {
     expect(screen.queryByText(/Scenario inputs changed since the latest run/i)).not.toBeInTheDocument();
   });
 
+
+  it("shows a reproducible report snapshot and supports print-to-PDF", async () => {
+    const print = vi.fn();
+    vi.stubGlobal("print", print);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    expect(screen.getByRole("heading", { name: "What changed?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Configuration snapshot" })).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getByText("10.00 kWh")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Print / Save as PDF" }));
+    expect(print).toHaveBeenCalledOnce();
+  });
+
+  it("keeps exported report results tied to the completed run when inputs become stale", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Run sample scenario" }));
+    await waitFor(() => expect(runHourlyScenario).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Import tariff at 00:00 MYT" }), { target: { value: "0.99" } });
+    fireEvent.click(screen.getByRole("button", { name: "Analytics" }));
+
+    expect(screen.getByText(/Exported files will preserve these completed results/)).toBeInTheDocument();
+    expect(screen.getByText("+0.65 MYR")).toBeInTheDocument();
+  });
+
 });
