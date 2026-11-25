@@ -133,7 +133,7 @@ describe("GridMind desktop shell", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Welcome back, Test User." })).toBeInTheDocument();
-    expect(screen.getByText("SCENARIO STATUS")).toBeInTheDocument();
+    expect(screen.getByText("LATEST RUN")).toBeInTheDocument();
     expect(screen.getAllByText("Not started")).toHaveLength(2);
     expect(screen.getByRole("heading", { name: "Your first energy scenario starts here." })).toBeInTheDocument();
     expect(screen.getByText("Set your assumptions")).toBeInTheDocument();
