@@ -86,8 +86,8 @@ function exportCsv(report: GridMindScenarioReport): void {
     ["gridmind_tariff_costs_valid", report.gridmind?.tariff_costs_valid ?? ""],
     ["cost_basis", "Net tariff cost = import charges minus export credits; excludes optional battery degradation penalty in optimizer objective"],
     ["note", "Modeled estimates, not measured performance or guaranteed savings"],
-    ...report.assumptions.map((assumption, index) => ["assumption_" + String(index + 1).padStart(2, "0"), assumption]),
-    ...report.limitations.map((limitation, index) => ["limitation_" + String(index + 1).padStart(2, "0"), limitation]),
+    ...report.assumptions.map((assumption, index): [string, string] => ["assumption_" + String(index + 1).padStart(2, "0"), assumption]),
+    ...report.limitations.map((limitation, index): [string, string] => ["limitation_" + String(index + 1).padStart(2, "0"), limitation]),
   ];
   const content = [
     ...summary.map((row) => row.map(csvCell).join(",")),
