@@ -12,6 +12,7 @@ from gridmind import (
     TariffSeries,
     TimeSeriesPoint,
     optimize_dispatch,
+    simulate,
 )
 
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -31,6 +32,43 @@ def make_inputs(demand, solar, import_rates, export_rates=None):
 
 
 class OptimizerTests(unittest.TestCase):
+    def test_seeded_baseline_soc_path_is_never_worse_without_degradation_penalty(self):
+        config = GridMindConfig(
+            BatteryConfig(
+                capacity_kwh=3.7,
+                max_charge_power_kw=1.3,
+                max_discharge_power_kw=1.1,
+                charge_efficiency=0.93,
+                discharge_efficiency=0.91,
+                initial_soc_kwh=1.37,
+            )
+        )
+        inputs = make_inputs(
+            [0.2, 0.9, 1.1, 0.4, 0.8, 1.0],
+            [1.15, 0.0, 0.0, 1.4, 0.0, 0.0],
+            [0.08, 0.12, 0.65, 0.09, 0.75, 0.11],
+            [0.03, 0.03, 0.03, 0.03, 0.03, 0.03],
+        )
+        baseline = simulate(config, inputs)
+        baseline_soc = tuple(item.state_of_charge_kwh for item in baseline.intervals)
+        optimized = optimize_dispatch(
+            config,
+            inputs,
+            OptimizationConfig(
+                soc_step_kwh=0.7,
+                terminal_soc_kwh=baseline_soc[-1],
+                baseline_soc_schedule_kwh=baseline_soc,
+            ),
+        )
+        self.assertLessEqual(
+            optimized.total_net_cost,
+            baseline.total_net_cost + 1e-9,
+        )
+        self.assertAlmostEqual(
+            optimized.terminal_soc_kwh,
+            baseline_soc[-1],
+        )
+
     def test_shifts_grid_charge_from_cheap_to_expensive_period(self):
         config = GridMindConfig(BatteryConfig(1, 1, 1))
         result = optimize_dispatch(
