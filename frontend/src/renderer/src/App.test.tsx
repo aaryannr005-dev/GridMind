@@ -441,8 +441,11 @@ describe("GridMind desktop shell", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Tariffs" }));
     const tariffPanel = screen.getByRole("tabpanel", { name: "Tariffs" });
     fireEvent.click(tariffPanel.querySelector("summary")!);
-    expect(screen.getByRole("row", { name: /00:00/ })).toHaveTextContent("0.22");
-    expect(screen.getByRole("row", { name: /00:00/ })).not.toHaveTextContent("0.99");
+    const tariffRows = Array.from(tariffPanel.querySelectorAll("tr"));
+    const midnightTariffRow = tariffRows.find((row) => row.textContent?.includes("00:00"));
+    expect(midnightTariffRow).toBeDefined();
+    expect(midnightTariffRow).toHaveTextContent("0.22");
+    expect(midnightTariffRow).not.toHaveTextContent("0.99");
   });
 
   it("passes the exact Control Rail input snapshot with its completed run", async () => {
