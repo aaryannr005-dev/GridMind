@@ -224,7 +224,8 @@ function ReportSensitivity({
           next.push({
             multiplier,
             value,
-            changePercent: baselineValue !== 0 ? ((value - baselineValue) / Math.abs(baselineValue)) * 100 : null,
+            changePercent: typeof value === "number" && typeof baselineValue === "number" && baselineValue !== 0
+              ? ((value - baselineValue) / Math.abs(baselineValue)) * 100 : null,
           });
         } catch (reason) {
           next.push({ multiplier, value: null, changePercent: null,
@@ -267,7 +268,7 @@ function ReportSensitivity({
       </div>
       {error && <p className="report-sensitivity-error" role="alert">{error}</p>}
       {results && <div className="report-sensitivity-results" aria-live="polite">
-        <div className="report-sensitivity-summary"><strong>{metricLabel}</strong><span>Baseline: {format(baselineValue, metric === "solar_self_consumption_ratio" ? 3 : 2)}{currencyMetric ? " " + report.currency : metric === "solar_self_consumption_ratio" ? " ratio" : " kWh"}</span></div>
+        <div className="report-sensitivity-summary"><strong>{metricLabel}</strong><span>Baseline: {format(baselineValue ?? undefined, metric === "solar_self_consumption_ratio" ? 3 : 2)}{currencyMetric ? " " + report.currency : metric === "solar_self_consumption_ratio" ? " ratio" : " kWh"}</span></div>
         <div className="report-dispatch-table">
           <div className="report-dispatch-head"><span>Input level</span><span>Outcome</span><span>Change</span></div>
           {results.map((point) => <div className="report-dispatch-row" key={point.multiplier}>
