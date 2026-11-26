@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport } from "../../../shared/protocol";
+import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport, SensitivityStrategy } from "../../../shared/protocol";
 import { ScenarioResults } from "./HomePage";
 import { FeedbackState } from "../components/FeedbackState";
 import { SliderNumberField } from "../components/SliderNumberField";
@@ -21,6 +21,7 @@ interface SimulationLabPageProps {
   onRun: (payload: RunHourlyScenarioPayload) => void;
   onReset: () => void;
   sensitivityReport: SensitivityReport | null;
+  sensitivityStrategy: SensitivityStrategy | null;
   sensitivityLoading: boolean;
   sensitivityError: string | null;
   sensitivityStale: boolean;
@@ -83,7 +84,7 @@ function formatEnergy(value: number | null): string {
 
 export function SimulationLabPage({
   values, report, reportSource, isRunning, error, onValuesChange, onRun, onReset,
-  sensitivityReport, sensitivityLoading, sensitivityError, sensitivityStale, onRunSensitivity,
+  sensitivityReport, sensitivityStrategy, sensitivityLoading, sensitivityError, sensitivityStale, onRunSensitivity,
 }: SimulationLabPageProps) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const errorSummary = useRef<HTMLDivElement>(null);
@@ -265,6 +266,7 @@ export function SimulationLabPage({
     <SensitivityAnalysisPanel
       scenario={sensitivityScenario.ok ? sensitivityScenario.payload : null}
       report={sensitivityReport}
+      sensitivityStrategy={sensitivityStrategy}
       loading={sensitivityLoading || isRunning}
       error={sensitivityError}
       stale={sensitivityStale}
