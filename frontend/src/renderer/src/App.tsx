@@ -5,7 +5,7 @@ import { HomePage } from "./pages/HomePage";
 import { getNavigationItem } from "./navigation";
 import type { PageId } from "./types";
 import { demoScenario } from "./demo-scenario";
-import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport } from "../../shared/protocol";
+import type { GridMindScenarioReport, RunHourlyScenarioPayload, RunSensitivityAnalysisPayload, SensitivityReport, SensitivityStrategy } from "../../shared/protocol";
 import { SimulationLabPage } from "./pages/SimulationLabPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { createInitialScenarioValues, type ScenarioFormValues } from "./scenario-form";
@@ -31,6 +31,7 @@ export default function App() {
   const [reportScenarioValues, setReportScenarioValues] = useState<ScenarioFormValues | null>(null);
   const [reportTariffs, setReportTariffs] = useState<{ importRates: number[]; exportRates: number[] } | null>(null);
   const [sensitivityReport, setSensitivityReport] = useState<SensitivityReport | null>(null);
+  const [sensitivityStrategy, setSensitivityStrategy] = useState<SensitivityStrategy | null>(null);
   const [sensitivityError, setSensitivityError] = useState<string | null>(null);
   const [isSensitivityRunning, setIsSensitivityRunning] = useState(false);
   const [sensitivityScenarioSnapshot, setSensitivityScenarioSnapshot] = useState<string | null>(null);
@@ -114,10 +115,12 @@ export default function App() {
     setIsSensitivityRunning(true);
     setSensitivityError(null);
     setSensitivityReport(null);
+    setSensitivityStrategy(null);
     setSensitivityScenarioSnapshot(null);
     try {
       const result = await window.gridmindDesktop.runSensitivityAnalysis(payload);
       setSensitivityReport(result);
+      setSensitivityStrategy(payload.strategy);
       setSensitivityScenarioSnapshot(valuesSnapshot);
     } catch (reason) {
       setSensitivityError(reason instanceof Error ? reason.message : "Sensitivity analysis could not be completed.");
@@ -211,6 +214,7 @@ export default function App() {
                   onRun={(payload) => { void runScenario(payload, "custom", scenarioValues); }}
                   onReset={() => updateScenarioValues(createInitialScenarioValues())}
                   sensitivityReport={sensitivityReport}
+                  sensitivityStrategy={sensitivityStrategy}
                   sensitivityLoading={isSensitivityRunning}
                   sensitivityError={sensitivityError}
                   sensitivityStale={sensitivityScenarioSnapshot !== null && sensitivityScenarioSnapshot !== JSON.stringify(scenarioValues)}

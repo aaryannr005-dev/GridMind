@@ -11,6 +11,7 @@ import type {
 interface SensitivityAnalysisPanelProps {
   scenario: RunHourlyScenarioPayload | null;
   report: SensitivityReport | null;
+  sensitivityStrategy: SensitivityStrategy | null;
   loading: boolean;
   error: string | null;
   stale: boolean;
@@ -41,19 +42,19 @@ function formatValue(value: number | null, metric: SensitivityMetric, currency: 
 }
 
 export function SensitivityAnalysisPanel({
-  scenario, report, loading, error, stale, onRun,
+  scenario, report, sensitivityStrategy, loading, error, stale, onRun,
 }: SensitivityAnalysisPanelProps) {
-  const [parameter, setParameter] = useState<SensitivityParameter>("demand");
-  const [metric, setMetric] = useState<SensitivityMetric>("net_cost");
-  const [strategy, setStrategy] = useState<SensitivityStrategy>("gridmind");
-  const [lastStrategy, setLastStrategy] = useState<SensitivityStrategy>("gridmind");
+  const [parameter, setParameter] = useState<SensitivityParameter>(report?.parameter ?? "demand");
+  const [metric, setMetric] = useState<SensitivityMetric>(report?.metric ?? "net_cost");
+  const [strategy, setStrategy] = useState<SensitivityStrategy>(sensitivityStrategy ?? "gridmind");
 
   function submit() {
     if (!scenario || loading) return;
-    setLastStrategy(strategy);
     onRun({ scenario, parameter, multipliers, metric, strategy });
   }
 
+  const settingsStale = report !== null && (parameter !== report.parameter || metric !== report.metric || strategy !== sensitivityStrategy);
+  const resultsStale = stale || settingsStale;
   const scale = Math.max(0.000001, ...(report?.points ?? [])
     .filter((point) => point.feasible && point.metric_value !== null)
     .map((point) => Math.abs(point.metric_value ?? 0)));
@@ -88,12 +89,12 @@ export function SensitivityAnalysisPanel({
     <p className="form-help">Each case scales the selected input to 50%, 75%, 100%, 125% or 150% of its current value. These are user-defined stress cases, not probability ranges or forecasts.</p>
     {!scenario && <p className="form-field-error">Correct the scenario inputs above before running sensitivity analysis.</p>}
     {error && <div className="validation-summary" role="alert">{error}</div>}
-    {stale && report && <div className="stale-results-banner" role="status"><div><strong>These sensitivity results use an earlier scenario snapshot.</strong><span>Run the sweep again to apply your latest edits.</span></div></div>}
-    {report && !stale && <>
+    {resultsStale && report && <div className="stale-results-banner" role="status"><div><strong>{stale ? "These sensitivity results use an earlier scenario snapshot." : "These results use earlier sensitivity settings."}</strong><span>Run the sweep again to apply your latest scenario and analysis settings.</span></div></div>}
+    {report && !resultsStale && <>
       <div className="sensitivity-summary">
         <div><span>BASELINE VALUE</span><strong>{formatValue(report.baseline_value, report.metric, report.currency)}</strong></div>
         <div><span>INPUT DIMENSION</span><strong>{parameterLabels[report.parameter]}</strong></div>
-        <div><span>DISPATCH METHOD</span><strong>{lastStrategy === "gridmind" ? "GridMind optimiser" : "Self-consumption-first"}</strong></div>
+        <div><span>DISPATCH METHOD</span><strong>{sensitivityStrategy === "gridmind" ? "GridMind optimiser" : "Self-consumption-first"}</strong></div>
       </div>
       <p className="form-help">Bar length shows absolute metric magnitude within this sweep; signed values and changes are shown in the table below.</p>
       <div className="sensitivity-results" role="group" aria-label={`Sensitivity results for ${parameterLabels[report.parameter]} and ${metricLabels[report.metric]}`}>

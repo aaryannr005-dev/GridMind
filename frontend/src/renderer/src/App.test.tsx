@@ -634,6 +634,38 @@ describe("GridMind sensitivity analysis", () => {
     expect(screen.getAllByText("150%")).toHaveLength(2);
   });
 
+  it("marks sensitivity results stale when the selected analysis settings change", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /^Simulation/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Run sensitivity sweep" }));
+    expect((await screen.findAllByText("1.85 MYR")).length).toBeGreaterThan(1);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Input to vary" }), { target: { value: "solar_generation" } });
+    expect(screen.getByText("These results use earlier sensitivity settings.")).toBeInTheDocument();
+    expect(screen.queryByText("1.85 MYR")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run sensitivity sweep" }));
+    await waitFor(() => {
+      expect(runSensitivityAnalysis).toHaveBeenLastCalledWith(expect.objectContaining({
+        parameter: "solar_generation",
+      }));
+      expect(screen.queryByText("These results use earlier sensitivity settings.")).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Dispatch strategy" }), { target: { value: "baseline" } });
+    expect(screen.getByText("These results use earlier sensitivity settings.")).toBeInTheDocument();
+    expect(screen.queryByText("1.85 MYR")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run sensitivity sweep" }));
+    await waitFor(() => {
+      expect(runSensitivityAnalysis).toHaveBeenLastCalledWith(expect.objectContaining({
+        parameter: "solar_generation",
+        strategy: "baseline",
+      }));
+      expect(screen.queryByText("These results use earlier sensitivity settings.")).not.toBeInTheDocument();
+    });
+  });
+
   it("keeps infeasible sensitivity cases visible without presenting them as zero outcomes", async () => {
     runSensitivityAnalysis.mockResolvedValueOnce({
       parameter: "demand",
